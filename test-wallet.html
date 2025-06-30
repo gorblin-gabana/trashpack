@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>TrashPack Wallet Test</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }
+            .container {
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+            }
+            button {
+                background: #9a43ff;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 6px;
+                cursor: pointer;
+                margin: 10px 5px;
+                font-size: 14px;
+            }
+            button:hover {
+                background: #8534e6;
+            }
+            button:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+            .status {
+                padding: 10px;
+                margin: 10px 0;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            .connected {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .disconnected {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            .info {
+                background: #d1ecf1;
+                color: #0c5460;
+                border: 1px solid #bee5eb;
+            }
+            .output {
+                background: #f8f9fa;
+                border: 1px solid #dee2e6;
+                padding: 15px;
+                border-radius: 5px;
+                margin: 10px 0;
+                font-family: monospace;
+                white-space: pre-wrap;
+                max-height: 300px;
+                overflow-y: auto;
+            }
+            .section {
+                margin: 20px 0;
+                padding: 15px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+            }
+            .wallet-info {
+                background: #f8f9fa;
+                padding: 10px;
+                border-radius: 5px;
+                margin: 10px 0;
+            }
+            .test-section {
+                margin: 20px 0;
+                padding: 15px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+            }
+            .test-card {
+                margin: 10px;
+                padding: 15px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                background-color: #fff;
+            }
+            .test-card h3 {
+                margin-top: 0;
+                margin-bottom: 10px;
+            }
+            .btn-primary {
+                background: #9a43ff;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 6px;
+                cursor: pointer;
+                margin: 10px 5px;
+                font-size: 14px;
+            }
+            .btn-primary:hover {
+                background: #8534e6;
+            }
+            .btn-secondary {
+                background: #6c757d;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 6px;
+                cursor: pointer;
+                margin: 10px 5px;
+                font-size: 14px;
+            }
+            .btn-secondary:hover {
+                background: #5a6268;
+            }
+            .description {
+                margin-bottom: 10px;
+            }
+            .grid {
+                display: flex;
+                flex-wrap: wrap;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🗑️ TrashPack Wallet Test</h1>
+
+            <div class="section">
+                <h2>Wallet Detection</h2>
+                <div id="walletStatus" class="status disconnected">Checking for wallet...</div>
+                <div class="wallet-info">
+                    <strong>Wallet Name:</strong> <span id="walletName">-</span><br />
+                    <strong>Version:</strong> <span id="walletVersion">-</span><br />
+                    <strong>Is TrashPack:</strong> <span id="isTrashPack">-</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Connection</h2>
+                <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+                <button id="disconnectBtn" onclick="disconnectWallet()" disabled>Disconnect</button>
+                <div id="connectionStatus" class="status info">Not connected</div>
+                <div id="publicKey" class="wallet-info"></div>
+            </div>
+
+            <div class="section">
+                <h2>Sign Message</h2>
+                <input type="text" id="messageInput" placeholder="Enter message to sign" style="width: 300px; padding: 8px; margin: 5px" />
+                <button onclick="signMessage()" id="signMessageBtn" disabled>Sign Message</button>
+            </div>
+
+            <div class="section">
+                <h2>Event Log</h2>
+                <button onclick="clearLog()">Clear Log</button>
+                <div id="output" class="output">Waiting for events...</div>
+            </div>
+
+            <section class="test-section">
+                <h2>Connection Testing</h2>
+                <p class="description">Test the wallet connection flow to identify any issues.</p>
+
+                <div class="grid">
+                    <div class="test-card">
+                        <h3>🔗 Connection Flow Test</h3>
+                        <button id="testConnectFlow" class="btn-primary">Test Connect Flow</button>
+                        <div id="connectFlowResult" class="status info">Ready to test</div>
+                    </div>
+
+                    <div class="test-card">
+                        <h3>🔍 Debug Connection</h3>
+                        <button id="debugConnect" class="btn-secondary">Debug Connect</button>
+                        <div id="debugResult" class="status info">Debug info will appear here</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <script>
+            let wallet = null;
+            let connected = false;
+
+            // Initialize
+            window.addEventListener("load", () => {
+                detectWallet();
+            });
+
+            function detectWallet() {
+                if (window.trashpack) {
+                    wallet = window.trashpack;
+                    updateWalletInfo();
+                    setupEventListeners();
+                    log("✅ TrashPack wallet detected");
+                } else {
+                    log("❌ TrashPack wallet not found");
+                    document.getElementById("walletStatus").textContent = "TrashPack wallet not detected";
+
+                    // Listen for wallet initialization
+                    window.addEventListener("trashpack#initialized", (event) => {
+                        wallet = event.detail;
+                        updateWalletInfo();
+                        setupEventListeners();
+                        log("✅ TrashPack wallet initialized");
+                    });
+                }
+            }
+
+            function updateWalletInfo() {
+                if (wallet) {
+                    document.getElementById("walletStatus").textContent = "TrashPack wallet detected";
+                    document.getElementById("walletStatus").className = "status connected";
+                    document.getElementById("walletName").textContent = wallet.name || "TrashPack";
+                    document.getElementById("walletVersion").textContent = wallet.version || "1.0.0";
+                    document.getElementById("isTrashPack").textContent = wallet.isTrashPack ? "Yes" : "No";
+                }
+            }
+
+            function setupEventListeners() {
+                if (!wallet) return;
+
+                wallet.on("connect", (publicKey) => {
+                    log("🔗 Wallet connected: " + publicKey);
+                    updateConnectionStatus(true, publicKey);
+                });
+
+                wallet.on("disconnect", () => {
+                    log("💔 Wallet disconnected");
+                    updateConnectionStatus(false);
+                });
+
+                wallet.on("accountChanged", (publicKey) => {
+                    log("🔄 Account changed: " + publicKey);
+                    if (connected) {
+                        updateConnectionStatus(true, publicKey);
+                    }
+                });
+            }
+
+            async function connectWallet() {
+                if (!wallet) {
+                    log("❌ No wallet detected");
+                    return;
+                }
+
+                try {
+                    log("🔄 Requesting connection...");
+                    const response = await wallet.connect();
+                    log("✅ Connected successfully: " + JSON.stringify(response, null, 2));
+                    updateConnectionStatus(true, response.publicKey);
+                } catch (error) {
+                    log("❌ Connection failed: " + error.message);
+                }
+            }
+
+            async function disconnectWallet() {
+                if (!wallet) {
+                    log("❌ No wallet detected");
+                    return;
+                }
+
+                try {
+                    log("🔄 Disconnecting...");
+                    await wallet.disconnect();
+                    log("✅ Disconnected successfully");
+                    updateConnectionStatus(false);
+                } catch (error) {
+                    log("❌ Disconnection failed: " + error.message);
+                }
+            }
+
+            async function signMessage() {
+                if (!wallet || !connected) {
+                    log("❌ Wallet not connected");
+                    return;
+                }
+
+                const message = document.getElementById("messageInput").value;
+                if (!message) {
+                    log("❌ Please enter a message");
+                    return;
+                }
+
+                try {
+                    log("🔄 Signing message: " + message);
+                    const response = await wallet.signMessage(message);
+                    log("✅ Message signed: " + JSON.stringify(response, null, 2));
+                } catch (error) {
+                    log("❌ Message signing failed: " + error.message);
+                }
+            }
+
+            function updateConnectionStatus(isConnected, publicKey = null) {
+                connected = isConnected;
+                const statusEl = document.getElementById("connectionStatus");
+                const publicKeyEl = document.getElementById("publicKey");
+                const connectBtn = document.getElementById("connectBtn");
+                const disconnectBtn = document.getElementById("disconnectBtn");
+                const signMessageBtn = document.getElementById("signMessageBtn");
+
+                if (isConnected) {
+                    statusEl.textContent = "Connected";
+                    statusEl.className = "status connected";
+                    publicKeyEl.innerHTML = `<strong>Public Key:</strong> ${publicKey || "Unknown"}`;
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    signMessageBtn.disabled = false;
+                } else {
+                    statusEl.textContent = "Not connected";
+                    statusEl.className = "status info";
+                    publicKeyEl.innerHTML = "";
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    signMessageBtn.disabled = true;
+                }
+            }
+
+            function log(message) {
+                const output = document.getElementById("output");
+                const timestamp = new Date().toLocaleTimeString();
+                output.textContent += `[${timestamp}] ${message}\n`;
+                output.scrollTop = output.scrollHeight;
+            }
+
+            function clearLog() {
+                document.getElementById("output").textContent = "Log cleared...\n";
+            }
+
+            // Also listen for the legacy wallet-standard event
+            window.addEventListener("wallet-standard:register-wallet", (event) => {
+                log("📦 Wallet standard registration detected");
+            });
+
+            // Test buttons
+            document.getElementById("testConnectFlow").addEventListener("click", testConnectionFlow);
+            document.getElementById("debugConnect").addEventListener("click", debugConnection);
+
+            async function testConnectionFlow() {
+                const resultEl = document.getElementById("connectFlowResult");
+                resultEl.textContent = "Testing connection flow...";
+                resultEl.className = "status info";
+
+                log("🧪 Starting connection flow test...");
+
+                if (!window.trashpack) {
+                    resultEl.textContent = "❌ TrashPack not found";
+                    resultEl.className = "status error";
+                    log("❌ window.trashpack not available");
+                    return;
+                }
+
+                try {
+                    log("📞 Calling window.trashpack.connect()...");
+                    const startTime = Date.now();
+
+                    const result = await window.trashpack.connect();
+                    const duration = Date.now() - startTime;
+
+                    resultEl.textContent = `✅ Connected in ${duration}ms! Key: ${result.publicKey?.substring(0, 8)}...`;
+                    resultEl.className = "status connected";
+                    log(`✅ Connection successful in ${duration}ms:`, result);
+
+                    // Update connection status
+                    updateConnectionStatus(true, result.publicKey);
+                } catch (error) {
+                    const duration = Date.now() - startTime;
+                    resultEl.textContent = `❌ Failed after ${duration}ms: ${error.message}`;
+                    resultEl.className = "status error";
+                    log(`❌ Connection failed after ${duration}ms:`, error);
+                }
+            }
+
+            async function debugConnection() {
+                const resultEl = document.getElementById("debugResult");
+                resultEl.className = "status info";
+
+                log("🔍 Starting connection debug...");
+
+                // Check extension status
+                const extensionOk = typeof chrome !== "undefined" && chrome.runtime;
+                const walletOk = !!window.trashpack;
+                const walletConnected = window.trashpack?.connected;
+
+                // Check if content script is working
+                let contentScriptOk = false;
+                try {
+                    // This is a simple test to see if content script responded
+                    window.postMessage({ type: "TEST_CONTENT_SCRIPT", source: "test" }, "*");
+                    contentScriptOk = true;
+                } catch (e) {
+                    contentScriptOk = false;
+                }
+
+                const debugInfo = {
+                    extensionAvailable: extensionOk,
+                    walletProviderFound: walletOk,
+                    walletConnected: walletConnected,
+                    contentScriptLikely: contentScriptOk,
+                    currentUrl: window.location.href,
+                    userAgent: navigator.userAgent.includes("Chrome"),
+                };
+
+                resultEl.innerHTML = `
+                    <strong>Debug Results:</strong><br/>
+                    Extension APIs: ${debugInfo.extensionAvailable ? "✅" : "❌"}<br/>
+                    Wallet Provider: ${debugInfo.walletProviderFound ? "✅" : "❌"}<br/>
+                    Wallet Connected: ${debugInfo.walletConnected ? "✅" : "❌"}<br/>
+                    Content Script: ${debugInfo.contentScriptLikely ? "✅" : "❌"}<br/>
+                    Chrome Browser: ${debugInfo.userAgent ? "✅" : "❌"}<br/>
+                    Page URL: ${debugInfo.currentUrl}
+                `;
+
+                log("🔍 Debug info:", debugInfo);
+
+                if (walletOk) {
+                    log("🔍 Wallet provider details:", {
+                        name: window.trashpack.name,
+                        version: window.trashpack.version,
+                        isTrashPack: window.trashpack.isTrashPack,
+                        connected: window.trashpack.connected,
+                        publicKey: window.trashpack.publicKey,
+                    });
+                }
+            }
+        </script>
+    </body>
+</html>

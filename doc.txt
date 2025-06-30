@@ -1,0 +1,87 @@
+#How to Create a Keypair
+To send a transaction on the Solana blockchain, you need a valid signature from a keypair or wallet. If you are connecting to a wallet application (eg. Phantom or Solflare), the wallet manages the keypair for you, so you don’t need to create one yourself. However, if you are not using a wallet, you will need to generate a keypair to sign your transactions.
+
+Extractable keypair
+import { generateKeyPairSigner } from "@solana/kit";
+
+const signer = await generateKeyPairSigner();
+console.log("address: ", signer.address);
+
+#How to Generate Mnemonics for Keypairs
+One way to generate a Keypair is through the use of a Mnemonic. Mnemonics are generally used to make the user experience within wallets better than a Keypair file by using a list of readable words (instead of a shorter string of random numbers and letters).
+
+import * as bip39 from "bip39";
+
+const mnemonic = bip39.generateMnemonic();
+console.log(mnemonic);
+
+#How to Restore a Keypair from a Mnemonic
+Many wallet extensions use mnemonics to represent their secret keys. You can convert the mnemonic to Keypairs for local testing.
+
+Restoring BIP39 format mnemonics
+
+import { createKeyPairSignerFromPrivateKeyBytes } from "@solana/kit";
+import * as bip39 from "bip39";
+
+const mnemonic =
+  "pill tomorrow foster begin walnut borrow virtual kick shift mutual shoe scatter";
+const seed = bip39.mnemonicToSeedSync(mnemonic, "");
+
+// Extract the first 32 bytes for the private key
+const privateKeyBytes = seed.subarray(0, 32);
+
+const signer = await createKeyPairSignerFromPrivateKeyBytes(
+  new Uint8Array(privateKeyBytes)
+);
+
+console.log(signer.address);
+
+#How to Restore a Keypair or Signer
+If you have an existing secret key, you can restore your Keypair from it. This allows you to access your wallet and sign transactions in your dApp.
+
+From Bytes
+import { createKeyPairSignerFromBytes } from "@solana/kit";
+
+const keypairBytes = new Uint8Array([
+  174, 47, 154, 16, 202, 193, 206, 113, 199, 190, 53, 133, 169, 175, 31, 56,
+  222, 53, 138, 189, 224, 216, 117, 173, 10, 149, 53, 45, 73, 251, 237, 246, 15,
+  185, 186, 82, 177, 240, 148, 69, 241, 227, 167, 80, 141, 89, 240, 121, 121,
+  35, 172, 247, 68, 251, 226, 218, 48, 63, 176, 109, 168, 89, 238, 135
+]);
+
+const signer = await createKeyPairSignerFromBytes(keypairBytes);
+console.log(signer.address);
+
+How to Restore a Keypair or Signer
+If you have an existing secret key, you can restore your Keypair from it. This allows you to access your wallet and sign transactions in your dApp.
+
+From Bytes
+import { createKeyPairSignerFromBytes } from "@solana/kit";
+
+const keypairBytes = new Uint8Array([
+  174, 47, 154, 16, 202, 193, 206, 113, 199, 190, 53, 133, 169, 175, 31, 56,
+  222, 53, 138, 189, 224, 216, 117, 173, 10, 149, 53, 45, 73, 251, 237, 246, 15,
+  185, 186, 82, 177, 240, 148, 69, 241, 227, 167, 80, 141, 89, 240, 121, 121,
+  35, 172, 247, 68, 251, 226, 218, 48, 63, 176, 109, 168, 89, 238, 135
+]);
+
+const signer = await createKeyPairSignerFromBytes(keypairBytes);
+console.log(signer.address);
+
+#How to Verify a Keypair
+If you are given a keypair, you can verify if the secret matches the given public key:
+
+import { createKeyPairSignerFromBytes, address } from "@solana/kit";
+
+const publicKey = address("24PNhTaNtomHhoy3fTRaMhAFCRj4uHqhZEEoWrKDbR5p");
+
+const keypairBytes = new Uint8Array([
+  174, 47, 154, 16, 202, 193, 206, 113, 199, 190, 53, 133, 169, 175, 31, 56,
+  222, 53, 138, 189, 224, 216, 117, 173, 10, 149, 53, 45, 73, 251, 237, 246, 15,
+  185, 186, 82, 177, 240, 148, 69, 241, 227, 167, 80, 141, 89, 240, 121, 121,
+  35, 172, 247, 68, 251, 226, 218, 48, 63, 176, 109, 168, 89, 238, 135
+]);
+
+const signer = await createKeyPairSignerFromBytes(keypairBytes);
+
+console.log(signer.address === publicKey);
