@@ -22,11 +22,11 @@ function HamburgerMenu() {
   };
 
   const handleExplorer = () => {
-    window.open('https://gorbaganachain.xyz/#explorer/', '_blank');
+    window.open('https://gorbscan.com/#explorer/', '_blank');
   };
 
   const handleSupport = () => {
-    window.open('https://discord.gg/gorbagana', '_blank');
+    window.open('https://discord.gg/', '_blank');
   };
 
   return (

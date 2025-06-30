@@ -1,10 +1,4 @@
-
-import {
-    Connection,
-    PublicKey,
-    Transaction,
-    SystemProgram,
-} from '@solana/web3.js';
+import { address, createSolanaRpc, devnet } from '@solana/kit';
 import { Buffer } from 'buffer';
 
 /**
@@ -14,38 +8,35 @@ export async function prepareTransaction(params) {
     const { senderPublicKeyString, receiverPublicKeyString, transferAmt, rpcUrl } = params;
     try {
         // Connect to Solana network
-        const connection = new Connection(
-            rpcUrl,
-            "confirmed"
-        );
+        const rpc = createSolanaRpc(devnet(rpcUrl));
 
         // Transaction parameters
-        const senderPublicKey = new PublicKey(senderPublicKeyString);
-        const receiverPublicKey = new PublicKey(receiverPublicKeyString);
+        const sender = address(senderPublicKeyString);
+        const receiver = address(receiverPublicKeyString);
         const transferAmount = transferAmt * 1000000000; // 0.0001 SOL in lamports
 
-        console.log(`Preparing transaction to transfer 0.0001 SOL from ${senderPublicKey.toString()} to ${receiverPublicKey.toString()}`);
+        console.log(`Preparing transaction to transfer 0.0001 SOL from ${sender.toString()} to ${receiver.toString()}`);
 
         // Get fresh blockhash
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("finalized");
+        const { blockhash, lastValidBlockHeight } = await rpc.getLatestBlockhash("finalized");
         console.log(`Got blockhash: ${blockhash} (valid until block height: ${lastValidBlockHeight})`);
 
         // Get current block height to estimate time left
-        const currentBlockHeight = await connection.getBlockHeight();
+        const currentBlockHeight = await rpc.getBlockHeight();
         const blocksRemaining = lastValidBlockHeight - currentBlockHeight;
         const estimatedTimeRemaining = blocksRemaining * 0.4; // ~0.4 seconds per block
         console.log(`Current block height: ${currentBlockHeight}, estimated time until expiration: ~${estimatedTimeRemaining.toFixed(0)} seconds`);
 
         // Create transfer instruction
         const transferInstruction = SystemProgram.transfer({
-            fromPubkey: senderPublicKey,
-            toPubkey: receiverPublicKey,
+            fromPubkey: sender,
+            toPubkey: receiver,
             lamports: transferAmount,
         });
 
         // Create a transaction and add the transfer instruction
         const transaction = new Transaction().add(transferInstruction);
-        transaction.feePayer = senderPublicKey;
+        transaction.feePayer = sender;
         transaction.recentBlockhash = blockhash;
 
         // Serialize the message
@@ -57,11 +48,11 @@ export async function prepareTransaction(params) {
         console.log("==========================================\n");
 
         return {
-            connection,
+            rpc,
             blockhash,
             lastValidBlockHeight,
             base64Message,
-            senderPublicKey
+            sender
         };
     } catch (error) {
         console.error("Error preparing transaction:", error);
@@ -74,11 +65,11 @@ export async function prepareTransaction(params) {
  */
 export async function completeTransaction(params) {
     try {
-        const { connection, base64Message, senderPublicKey, blockhash, lastValidBlockHeight, signatureHex } = params;
+        const { rpc, base64Message, sender, blockhash, lastValidBlockHeight, signatureHex } = params;
         // const signatureHex = await question("\nEnter the signature in hex format: ");
 
         // Check current block height to see if blockhash is still valid
-        const currentBlockHeight = await connection.getBlockHeight();
+        const currentBlockHeight = await rpc.getBlockHeight();
         if (currentBlockHeight >= lastValidBlockHeight) {
             console.error(`ERROR: Blockhash has expired! Current height: ${currentBlockHeight}, Last valid height: ${lastValidBlockHeight}`);
             console.error("Please start over with a fresh blockhash.");
@@ -109,7 +100,7 @@ export async function completeTransaction(params) {
         try {
             // Method 1: Using sendRawTransaction
             console.log("Trying method 1: sendRawTransaction...");
-            const txid1 = await connection.sendRawTransaction(wireTransaction, {
+            const txid1 = await rpc.sendRawTransaction(wireTransaction, {
                 skipPreflight: true,
                 preflightCommitment: "confirmed"
             });
@@ -118,7 +109,7 @@ export async function completeTransaction(params) {
             // Method 2: Using _rpcRequest
             console.log("Trying method 2: _rpcRequest...");
             const encodedTransaction = wireTransaction.toString("base64");
-            const rpcResponse = await connection._rpcRequest("sendTransaction", [
+            const rpcResponse = await rpc._rpcRequest("sendTransaction", [
                 encodedTransaction,
                 { encoding: "base64", skipPreflight: true, preflightCommitment: "confirmed" }
             ]);
@@ -135,7 +126,7 @@ export async function completeTransaction(params) {
                 console.log(`\nWaiting 5 seconds to check transaction status...`);
                 await new Promise(resolve => setTimeout(resolve, 5000));
 
-                const status = await connection.getSignatureStatus(txid);
+                const status = await rpc.getSignatureStatus(txid);
                 console.log("Transaction status:", status);
 
                 if (status.value === null) {
@@ -146,7 +137,7 @@ export async function completeTransaction(params) {
 
                     // Try to get more details
                     try {
-                        const simResult = await connection.simulateTransaction(wireTransaction);
+                        const simResult = await rpc.simulateTransaction(wireTransaction);
                         console.log("\nSimulation result:", simResult);
                     } catch (simError) {
                         console.log("\nSimulation error:", simError);
@@ -166,7 +157,7 @@ export async function completeTransaction(params) {
             // Try simulation to get more details
             try {
                 console.log("\nSimulating transaction to get more details...");
-                const simResult = await connection.simulateTransaction(wireTransaction);
+                const simResult = await rpc.simulateTransaction(wireTransaction);
                 console.log("Simulation result:", simResult);
             } catch (simError) {
                 console.log("Simulation error:", simError);

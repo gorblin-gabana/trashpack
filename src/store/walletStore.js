@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Connection, PublicKey, Keypair } from '@solana/web3.js';
+import { address, createSolanaRpc, devnet } from '@solana/kit';
 import * as bip39 from 'bip39';
 import secureStorage from '../util/secureStorage';
 import { networks } from '../lib/config';
@@ -9,7 +9,7 @@ export const useWalletStore = create((set, get) => ({
   walletAddress: '',
   balance: null,
   selectedNetwork: networks[1], // Default to first network (Gorbagana)
-  selectedEnvironment: 'testnet', // Default to testnet
+  selectedEnvironment: 'mainnet', // Default to testnet
   customRpcUrls: {}, // Custom RPC URLs per network and environment
   isLoadingBalance: false,
   mnemonic: '',
@@ -438,12 +438,12 @@ export const useWalletStore = create((set, get) => ({
       // Use custom RPC URL if available
       const rpcUrl = get().getCurrentRpcUrl();
 
-      const connection = new Connection(rpcUrl, {
+      const connection = createSolanaRpc(rpcUrl, {
         commitment: 'confirmed',
         wsEndpoint: currentNetwork.wsUrl,
         disableRetryOnRateLimit: false,
       });
-      const publicKey = new PublicKey(targetAddress);
+      const publicKey = address(targetAddress);
       const balanceInLamports = await connection.getBalance(publicKey);
       const balanceInRaw = balanceInLamports / 1000000000;
 

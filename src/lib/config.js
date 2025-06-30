@@ -1,14 +1,15 @@
 export const networks = [
     {
-        id: 'gor',
+        id: 'gorbchain-mainnet',
         name: 'Gorbagana',
         symbol: 'GOR',
-        icon: 'https://s2.coinmarketcap.com/static/img/coins/128x128/36883.png',
+        icon: '/icons/gorbchain.png',
         color: 'bg-teal-600',
-        rpcUrl: 'https://gorchain.wstf.io',
+        rpcUrl: 'https://rpc.gorbchain.xyz',
+        wsUrl: 'wss://rpc.gorbchain.xyz/ws',
         chain: 'gorbagana',
-        environment: "testnet",
-        explorerUrl: (txHash) => `https://explorer.gorbagana.wtf/tx/${txHash}`
+        environment: "mainnet",
+        explorerUrl: (txHash) => `https://gorbscan.com/tx/${txHash}`
     },
     {
         id: 'solana',
@@ -18,20 +19,20 @@ export const networks = [
         color: 'bg-purple-600',
         rpcUrl: 'https://api.devnet.solana.com',
         chain: 'solana',
-        environment: "testnet",
+        environment: "devnet",
         explorerUrl: (txHash) => `https://solscan.io/tx/${txHash}?cluster=devnet`
     },
     {
-        id: 'gor',
+        id: 'gorbchain-devnet',
         name: 'Gorbagana',
         symbol: 'GOR',
-        icon: 'https://s2.coinmarketcap.com/static/img/coins/128x128/36883.png',
+        icon: '/icons/gorbchain.png',
         color: 'bg-teal-600',
-        rpcUrl: 'https://rpc.gorbchain.xyz',
-        wsUrl: 'wss://rpc.gorbchain.xyz/ws',
+        rpcUrl: 'https://devnet.gorbchain.xyz',
+        wsUrl: 'wss://devnet.gorbchain.xyz/ws',
         chain: 'gorbagana',
         environment: "mainnet",
-        explorerUrl: (txHash) => `https://explorer.gorbagana.wtf/tx/${txHash}`
+        explorerUrl: (txHash) => `https://devnet.gorbscan.com/tx/${txHash}`
     },
     {
         id: 'solana',

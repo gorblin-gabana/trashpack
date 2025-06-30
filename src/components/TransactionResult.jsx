@@ -13,7 +13,7 @@ function TransactionResult() {
         <div>
           <p className="mb-2 text-[#39FF14] text-sm">Transaction successful!</p>
           <a
-            href={`https://gorbaganachain.xyz/#explorer/tx/${txResult}`}
+            href={`https://gorbscan.com/explorer/tx/${txResult}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[#39FF14] no-underline flex items-center justify-center gap-1 text-xs hover:underline"

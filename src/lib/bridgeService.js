@@ -1,4 +1,4 @@
-import { Connection, PublicKey, Keypair } from '@solana/web3.js';
+import { address, createSolanaRpc, devnet } from '@solana/kit';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import CROSS_IDL from './cross_idl.json';
 
@@ -23,17 +23,14 @@ class SimpleWallet {
 }
 
 // Program ID (matches deployed program)
-const PROGRAM_ID = new PublicKey('FzzCqoaXXYWYhJ62xA1feEAsaYdBfRkyTy2zBgDkYjFs');
+const PROGRAM_ID = address('FzzCqoaXXYWYhJ62xA1feEAsaYdBfRkyTy2zBgDkYjFs');
 
 // Hardcoded vault address for bridge locking
-const BRIDGE_VAULT_ADDRESS = new PublicKey('5rYp2nNjSYxqVDnGAqyjRozXmPxStjpdzjvHng7eVZjP');
+const BRIDGE_VAULT_ADDRESS = address('5rYp2nNjSYxqVDnGAqyjRozXmPxStjpdzjvHng7eVZjP');
 
 class BridgeService {
   constructor() {
-    this.connection = new Connection('https://api.devnet.solana.com', {
-      commitment: 'confirmed',
-      wsEndpoint: 'wss://api.devnet.solana.com/'
-    });
+    this.connection = createSolanaRpc(devnet);
   }
 
   async initializeBridge(userKeypair) {
@@ -104,9 +101,9 @@ class BridgeService {
         .lockFunds(new BN(amountLamports))
         .accounts({
           user: userKeypair.publicKey,
-          receiver: new PublicKey(destinationAddress),
+          receiver: address(destinationAddress),
           vault: BRIDGE_VAULT_ADDRESS,
-          system_program: PublicKey.default,
+          system_program: address('11111111111111111111111111111111'),
         })
         .rpc();
 

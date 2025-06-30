@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrashPack Wallet - Official Wallet of Gorbchain</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/png" href="icons/trashpack.png">
+</head>
+<body>
+  <div class="container">
+    <img src="icons/trashpack.png" alt="TrashPack Logo" class="logo">
+    <h1>TrashPack Wallet</h1>
+    <div class="tagline">The <span style="color:#FFD600;">official wallet</span> of <span style="color:#FFD600;">Gorbchain</span></div>
+    <div class="story">
+      Born from the Gorbagana community, built with love for the chain, and now trusted by all Gorbites.<br>
+      <span style="color:#00DFD8;">Secure. Open. Yours.</span>
+    </div>
+    <div class="quote">"Someone in Gorbagana talked about TrashPack, loved it, built it. Now it's the official wallet!"</div>
+    <div class="community">- Gorbagana Community</div>
+    <div style="margin-bottom:1rem;">
+      <span style="background:#FFD600;color:#23272F;padding:0.3em 1em;border-radius:1em;font-weight:bold;">
+        Official Gorbchain Wallet
+      </span>
+    </div>
+    <a id="main-action" href="#" class="button">Add to Chrome</a>
+    <div class="footer">
+      TrashPack Wallet is open source, secure, and built for the next era of Gorbchain.<br>
+      <a href="https://github.com/gorblin-gabana/trashpack" target="_blank">View on GitHub</a>
+    </div>
+  </div>
+  <script>
+    // Browser-aware button
+    function isChromeBrowser() {
+      var ua = navigator.userAgent;
+      return /Chrome|Chromium|Edg|Brave|Opera/.test(ua) && !/Firefox|Safari/.test(ua);
+    }
+    var mainAction = document.getElementById('main-action');
+    if (isChromeBrowser()) {
+      mainAction.href = 'https://chrome.google.com/webstore/detail/trashpack-wallet/';
+      mainAction.textContent = 'Add to Chrome';
+    } else {
+      mainAction.href = '/build/popup.html';
+      mainAction.textContent = 'Open in Browser';
+      mainAction.classList.add('alt');
+    }
+  </script>
+</body>
+</html>

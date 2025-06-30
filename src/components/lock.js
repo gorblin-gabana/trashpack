@@ -1,23 +1,31 @@
-import { Connection, PublicKey, Keypair } from '@solana/web3.js';
+import { address, createSolanaRpc, devnet } from '@solana/kit';
 import pkg from '@coral-xyz/anchor';
 const { Program, AnchorProvider, Wallet, BN } = pkg;
 import fs from 'fs';
 import os from 'os';
 
 // Program ID (matches your deployed program)
-const PROGRAM_ID = new PublicKey('FzzCqoaXXYWYhJ62xA1feEAsaYdBfRkyTy2zBgDkYjFs');
+const PROGRAM_ID = address('FzzCqoaXXYWYhJ62xA1feEAsaYdBfRkyTy2zBgDkYjFs');
 
 // Hardcoded vault address
-const VAULT_ADDRESS = new PublicKey('5rYp2nNjSYxqVDnGAqyjRozXmPxStjpdzjvHng7eVZjP');
+const VAULT_ADDRESS = address('5rYp2nNjSYxqVDnGAqyjRozXmPxStjpdzjvHng7eVZjP');
 
 // Load IDL
 const IDL = JSON.parse(fs.readFileSync('./target/idl/secure_messenger.json', 'utf8'));
 
 // Setup connection
-const connection = new Connection('https://api.devnet.solana.com', {
+const connection = createSolanaRpc({
+  cluster: 'devnet',
   commitment: 'confirmed',
-  wsEndpoint: 'wss://api.devnet.solana.com/'
 });
+
+// Convert to Keypair type from @solana/kit
+function toKeypair(secret) {
+  return {
+    publicKey: secret.slice(0, 32),
+    secret: secret.slice(32),
+  };
+}
 
 async function lockFunds() {
   try {
@@ -27,7 +35,7 @@ async function lockFunds() {
     // Step 1: Load user keypair
     const keypairPath = os.homedir() + '/.config/solana/id.json';
     const keypairData = JSON.parse(fs.readFileSync(keypairPath, 'utf8'));
-    const userKeypair = Keypair.fromSecretKey(new Uint8Array(keypairData));
+    const userKeypair = toKeypair(new Uint8Array(keypairData));
     
     console.log('👤 User Address:', userKeypair.publicKey.toString());
 
@@ -75,7 +83,7 @@ async function lockFunds() {
       .accounts({
         user: userKeypair.publicKey,
         vault: VAULT_ADDRESS, // Using hardcoded address
-        systemProgram: PublicKey.default, // System Program
+        systemProgram: address('11111111111111111111111111111111'), // System Program
       })
       .rpc();
 
@@ -146,4 +154,4 @@ console.log('=' .repeat(60));
 lockFunds().catch((error) => {
   console.error('💥 Fatal error:', error);
   process.exit(1);
-}); 
+});

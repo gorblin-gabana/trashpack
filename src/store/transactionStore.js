@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { toast } from 'react-hot-toast';
-import { Connection, Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
+import { address, createSolanaRpc, devnet } from '@solana/kit';
 import { Buffer } from 'buffer';
 import { supabase } from '../lib/supabase';
 import { parseTransactionError } from '../util/errorHandling';
@@ -57,27 +57,32 @@ export const useTransactionStore = create((set, get) => ({
     try {
       // Connect to the network using custom RPC URL if available, otherwise default
       const rpcUrl = getCurrentRpcUrl ? getCurrentRpcUrl() : selectedNetwork.rpcUrl;
-      const connection = new Connection(rpcUrl, "confirmed");
+      const connection = createSolanaRpc(rpcUrl);
 
       // Create transaction
-      const toPublicKey = new PublicKey(toAddress);
-      const fromPublicKey = new PublicKey(walletAddress);
+      const toPublicKey = address(toAddress);
+      const fromPublicKey = address(walletAddress);
       const lamports = amount * 1000000000; // Convert to lamports
 
       // Get recent blockhash
       const { blockhash } = await connection.getLatestBlockhash();
 
       // Create transfer instruction
-      const transferInstruction = SystemProgram.transfer({
-        fromPubkey: fromPublicKey,
-        toPubkey: toPublicKey,
-        lamports: lamports,
-      });
+      const transferInstruction = {
+        keys: [
+          { pubkey: fromPublicKey, isSigner: true, isWritable: true },
+          { pubkey: toPublicKey, isSigner: false, isWritable: true },
+        ],
+        programId: devnet.SystemProgram.programId,
+        data: Buffer.alloc(0),
+      };
 
       // Create and sign transaction using serialize message approach (like submitter.js)
-      const transaction = new Transaction().add(transferInstruction);
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = fromPublicKey;
+      const transaction = {
+        recentBlockhash: blockhash,
+        feePayer: fromPublicKey,
+        instructions: [transferInstruction],
+      };
 
       console.log("=== USING SERIALIZE MESSAGE APPROACH ===");
 

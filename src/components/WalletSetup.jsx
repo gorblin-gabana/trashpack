@@ -12,6 +12,7 @@ function WalletSetup() {
   const [createdMnemonic, setCreatedMnemonic] = useState('');
   const [showPasswordSetup, setShowPasswordSetup] = useState(false);
   const [userPassword, setUserPassword] = useState('');
+  const [seedPhraseExported, setSeedPhraseExported] = useState(false); // Track if seed phrase is exported
 
   const { generateWallet, restoreWallet, finalizeWalletSetup } = useWalletStore();
   const { error, setError, clearError } = useUIStore();
@@ -167,6 +168,14 @@ function WalletSetup() {
             You'll need it to restore your wallet if you forget your password.
           </p>
         </div>
+
+        {!seedPhraseExported && (
+          <div className="mb-2 bg-red-500/10 border border-red-500/20 rounded-lg p-2 w-full max-w-sm">
+            <p className="text-red-500 text-xs text-center">
+              <strong>Warning:</strong> Seed phrase not secured! Please export and back it up safely.
+            </p>
+          </div>
+        )}
 
         <button
           onClick={handleContinue}

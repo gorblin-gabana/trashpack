@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Connection, PublicKey } from '@solana/web3.js';
 import { Toaster, toast } from 'react-hot-toast';
+import { address, createSolanaRpc, devnet } from '@solana/kit';
 
 // Store imports
 import { useAuthStore, useWalletStore, useTransactionStore, useUIStore } from './store';
