@@ -7,9 +7,9 @@ import { useWalletStore } from '../store/walletStore';
 import BackBtn from '../components/BackBtn';
 import { truncateAddress } from '../util';
 
-function BridgePage() {
+function BridgePage({ requireUnlock }) {
     const navigate = useNavigate();
-    const { keypair, balance, hasWallet, walletAddress } = useWalletStore();
+    const { getKeypair, balance, hasWallet, walletAddress } = useWalletStore();
 
     const [currentStep, setCurrentStep] = useState('form'); // form, confirmation, processing, success, error
     const [bridgeData, setBridgeData] = useState({
@@ -76,9 +76,15 @@ function BridgePage() {
 
     const handleConfirmBridge = async () => {
         console.log("hasWallet", hasWallet);
-        console.log("keypair", keypair);
-        if (!hasWallet || !keypair) {
+
+        if (!hasWallet) {
             toast.error('Please connect your wallet first');
+            return;
+        }
+
+        // Check if wallet needs to be unlocked first
+        if (requireUnlock && requireUnlock()) {
+            // Unlock prompt is shown, user needs to unlock first
             return;
         }
 
@@ -106,6 +112,7 @@ function BridgePage() {
         setCurrentStep('processing');
 
         try {
+            const keypair = getKeypair(); // Get the keypair when needed
             const result = await bridgeService.initiatebridge(
                 keypair,
                 parseFloat(bridgeData.amount),

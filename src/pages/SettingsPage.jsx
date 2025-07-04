@@ -1,58 +1,31 @@
 import { useState } from 'react';
-import { Copy, HelpCircle, ExternalLink, Settings, MessageSquare, Key, Download, Eye, EyeOff, Trash2, CopyIcon, Save, RotateCcw, Edit3, DeleteIcon, LucideDelete } from 'lucide-react';
+import { Copy, HelpCircle, ExternalLink, MessageSquare, CopyIcon, Save, Trash2, Edit3, Settings as SettingsIcon, Key, Eye, EyeOff, Download } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore, useUIStore, useWalletStore } from '../store';
 import BackBtn from '../components/BackBtn';
 import { copyToClipboard } from '../util';
-import { networks } from '../lib/config';
 
-function SettingsPage() {
+function SettingsPage({ requireUnlock }) {
   const { principal } = useAuthStore();
   const { setHelpModalOpen } = useUIStore();
   const {
     walletAddress,
     selectedNetwork,
     selectedEnvironment,
-    setSelectedNetwork,
-    setSelectedEnvironment,
-    getFilteredNetworks,
-    exportMnemonic,
-    clearWallet,
+    hasWallet,
+    mnemonic,
     getCurrentRpcUrl,
     setCustomRpcUrl,
     resetRpcUrl,
-    customRpcUrls
+    getFilteredNetworks
   } = useWalletStore();
-  const [showMnemonic, setShowMnemonic] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditingRpc, setIsEditingRpc] = useState(false);
   const [rpcUrlInput, setRpcUrlInput] = useState('');
-
-  const { logout } = useAuthStore();
-  const { setError, clearError } = useUIStore();
 
   // Check if current RPC URL is custom
   const currentRpcUrl = getCurrentRpcUrl();
   const defaultRpcUrl = selectedNetwork?.rpcUrl;
   const isCustomRpc = currentRpcUrl !== defaultRpcUrl;
-
-  const handleNetworkChange = (networkIndex) => {
-    const filteredNetworks = getFilteredNetworks();
-    const network = filteredNetworks[networkIndex];
-    if (network) {
-      setSelectedNetwork(network);
-      // Reset RPC editing state when network changes
-      setIsEditingRpc(false);
-      setRpcUrlInput('');
-    }
-  };
-
-  const handleEnvironmentChange = (environment) => {
-    setSelectedEnvironment(environment);
-    // Reset RPC editing state when environment changes
-    setIsEditingRpc(false);
-    setRpcUrlInput('');
-  };
 
   const handleCopyPrincipal = async () => {
     const result = await copyToClipboard(walletAddress, 'Wallet Address');
@@ -68,11 +41,11 @@ function SettingsPage() {
   };
 
   const handleExplorer = () => {
-    window.open('https://gorbscan.com/explorer/', '_blank');
+    window.open('https://gorbscan.com/', '_blank');
   };
 
   const handleSupport = () => {
-    window.open('https://discord.gg/', '_blank');
+    window.open('https://discord.gg/gorbagana', '_blank');
   };
 
   const handleRpcClick = async () => {
@@ -128,54 +101,6 @@ function SettingsPage() {
   const handleCancelEdit = () => {
     setIsEditingRpc(false);
     setRpcUrlInput('');
-  };
-
-  const handleExportMnemonic = () => {
-    try {
-      clearError();
-      const mnemonic = exportMnemonic();
-      setShowMnemonic(true);
-      toast.success('Mnemonic phrase revealed');
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const copyMnemonic = () => {
-    try {
-      const mnemonic = exportMnemonic();
-      navigator.clipboard.writeText(mnemonic);
-      toast.success('Mnemonic copied to clipboard!');
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const downloadMnemonic = () => {
-    try {
-      const mnemonic = exportMnemonic();
-      const element = document.createElement('a');
-      const file = new Blob([mnemonic], { type: 'text/plain' });
-      element.href = URL.createObjectURL(file);
-      element.download = 'trashpack-wallet-mnemonic.txt';
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
-      toast.success('Mnemonic downloaded!');
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleDeleteWallet = async () => {
-    try {
-      clearWallet();
-      await logout();
-      toast.success('Wallet deleted successfully');
-      setShowDeleteConfirm(false);
-    } catch (err) {
-      setError(err.message);
-    }
   };
 
   return (
@@ -267,7 +192,7 @@ function SettingsPage() {
                 className="w-full bg-zinc-800 border border-zinc-600 rounded px-3 py-2 text-sm text-white font-mono focus:border-blue-500 focus:outline-none"
                 placeholder="Enter RPC URL..."
               />
-                             <p className="text-xs text-zinc-400">
+               <p className="text-xs text-zinc-400">
                  Network: {selectedNetwork?.name} ({selectedNetwork?.environment})
                </p>
             </div>
@@ -382,104 +307,114 @@ function SettingsPage() {
           </div>
         </div>
 
-        {/* Backup Section */}
-        <div className="bg-zinc-700 p-4 rounded-lg border border-zinc-600">
-          <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
-            <Key size={20} />
-            Backup Wallet
-          </h3>
-          <p className="text-sm text-zinc-400 mb-4">
-            Export your mnemonic phrase to backup your wallet. Keep it safe and never share it.
-          </p>
+        {/* Backup Section - Only show if wallet exists */}
+        {hasWallet && (
+          <div className="bg-zinc-700 p-4 rounded-lg border border-zinc-600">
+            <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+              <Key size={20} />
+              Backup Wallet
+            </h3>
+            <p className="text-sm text-zinc-400 mb-4">
+              Export your mnemonic phrase to backup your wallet. Keep it safe and never share it.
+            </p>
 
-          {!showMnemonic ? (
-            <button
-              onClick={handleExportMnemonic}
-              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm flex items-center gap-2"
-            >
-              <Eye size={16} />
-              Show Mnemonic Phrase
-            </button>
-          ) : (
-            <div className="space-y-4">
-              <div className="bg-zinc-800 p-3 rounded">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-zinc-400">Recovery Phrase</span>
+            {!showMnemonic ? (
+              <button
+                onClick={handleExportMnemonic}
+                className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm flex items-center gap-2"
+              >
+                <Eye size={16} />
+                Show Mnemonic Phrase
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-zinc-800 p-3 rounded">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-zinc-400">Recovery Phrase</span>
+                    <button
+                      onClick={() => setShowMnemonic(false)}
+                      className="text-zinc-400 hover:text-white"
+                    >
+                      <EyeOff size={16} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {mnemonic ? (
+                      mnemonic.split(' ').map((word, index) => (
+                        <span key={index} className="text-white bg-zinc-700 px-2 py-1 rounded text-xs">
+                          {index + 1}. {word}
+                        </span>
+                      ))
+                    ) : (
+                      <div className="col-span-3 text-red-400 text-xs text-center">
+                        Wallet must be unlocked to view mnemonic
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
                   <button
-                    onClick={() => setShowMnemonic(false)}
-                    className="text-zinc-400 hover:text-white"
+                    onClick={copyMnemonic}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm flex items-center justify-center gap-2"
                   >
-                    <EyeOff size={16} />
+                    <Key size={16} />
+                    Copy
+                  </button>
+                  <button
+                    onClick={downloadMnemonic}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded text-sm flex items-center justify-center gap-2"
+                  >
+                    <Download size={16} />
+                    Download
                   </button>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {exportMnemonic().split(' ').map((word, index) => (
-                    <span key={index} className="text-white bg-zinc-700 px-2 py-1 rounded text-xs">
-                      {index + 1}. {word}
-                    </span>
-                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Danger Zone - Only show if wallet exists */}
+        {hasWallet && (
+          <div className="bg-red-900/20 p-4 rounded-lg border border-red-600/30">
+            <h3 className="text-lg font-semibold mb-3 text-red-400 flex items-center gap-2">
+              <Trash2 size={20} />
+              Danger Zone
+            </h3>
+            <p className="text-sm text-zinc-400 mb-4">
+              Permanently delete your wallet from this device. Make sure you have backed up your mnemonic phrase.
+            </p>
+
+            {!showDeleteConfirm ? (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded text-sm"
+              >
+                Delete Wallet
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-red-400">
+                  Are you sure? This action cannot be undone. You will need your mnemonic phrase to restore your wallet.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleDeleteWallet}
+                    className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded text-sm"
+                  >
+                    Yes, Delete Wallet
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="bg-zinc-600 hover:bg-zinc-700 text-white py-2 px-4 rounded text-sm"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={copyMnemonic}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm flex items-center justify-center gap-2"
-                >
-                  <Key size={16} />
-                  Copy
-                </button>
-                <button
-                  onClick={downloadMnemonic}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded text-sm flex items-center justify-center gap-2"
-                >
-                  <Download size={16} />
-                  Download
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Danger Zone */}
-        <div className="bg-red-900/20 p-4 rounded-lg border border-red-600/30">
-          <h3 className="text-lg font-semibold mb-3 text-red-400 flex items-center gap-2">
-            <Trash2 size={20} />
-            Danger Zone
-          </h3>
-          <p className="text-sm text-zinc-400 mb-4">
-            Permanently delete your wallet from this device. Make sure you have backed up your mnemonic phrase.
-          </p>
-
-          {!showDeleteConfirm ? (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded text-sm"
-            >
-              Delete Wallet
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-red-400">
-                Are you sure? This action cannot be undone. You will need your mnemonic phrase to restore your wallet.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleDeleteWallet}
-                  className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded text-sm"
-                >
-                  Yes, Delete Wallet
-                </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="bg-zinc-600 hover:bg-zinc-700 text-white py-2 px-4 rounded text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
