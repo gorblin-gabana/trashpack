@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Wallet, Key, Download, Eye, EyeOff, Copy, CopyIcon, Wallet2Icon } from 'lucide-react';
+import { Wallet, Key, Download, Eye, EyeOff, Copy, CopyIcon, Wallet2Icon, CheckCircle } from 'lucide-react';
 import { useWalletStore, useUIStore } from '../store';
 import { toast } from 'react-hot-toast';
 import PasswordSetup from './PasswordSetup';
@@ -7,12 +7,13 @@ import PasswordSetup from './PasswordSetup';
 function WalletSetup() {
   const [mode, setMode] = useState(''); // 'create' or 'restore'
   const [restoreMnemonic, setRestoreMnemonic] = useState('');
-  const [showMnemonic, setShowMnemonic] = useState(true);
+  const [showMnemonic, setShowMnemonic] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createdMnemonic, setCreatedMnemonic] = useState('');
   const [showPasswordSetup, setShowPasswordSetup] = useState(false);
   const [userPassword, setUserPassword] = useState('');
   const [seedPhraseExported, setSeedPhraseExported] = useState(false); // Track if seed phrase is exported
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   const { generateWallet, restoreWallet, finalizeWalletSetup } = useWalletStore();
   const { error, setError, clearError } = useUIStore();
@@ -23,10 +24,18 @@ function WalletSetup() {
       clearError();
       const result = await generateWallet();
       setCreatedMnemonic(result.mnemonic);
-      toast.success('Wallet created successfully!');
+      setIsCreating(false);
+      
+      // Show success animation
+      setShowSuccessAnimation(true);
+      
+      // After 2 seconds, hide animation and show keyphrase
+      setTimeout(() => {
+        setShowSuccessAnimation(false);
+        toast.success('Wallet created successfully!');
+      }, 2000);
     } catch (err) {
       setError(err.message);
-    } finally {
       setIsCreating(false);
     }
   };
@@ -78,8 +87,8 @@ function WalletSetup() {
 
   const handlePasswordCancel = () => {
     setShowPasswordSetup(false);
-    // User can still continue with auto-generated password
-    finalizeWalletWithPassword(null);
+    // Don't finalize wallet without password - user must set a password
+    setError('Password is required to secure your wallet');
   };
 
   const finalizeWalletWithPassword = async (password) => {
@@ -107,82 +116,125 @@ function WalletSetup() {
     );
   }
 
-  if (createdMnemonic) {
+  // Show success animation
+  if (showSuccessAnimation) {
     return (
-      <div className="flex flex-col items-center h-full p-4">
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        <div className="text-center">
+          <div className="relative">
+            <CheckCircle className="mx-auto text-green-500 animate-pulse" size={80} />
+            <div className="absolute inset-0 border-4 border-green-500 rounded-full animate-ping opacity-75"></div>
+          </div>
+          <h2 className="text-3xl font-bold text-white mt-6 animate-fade-in">
+            Wallet Created!
+          </h2>
+          <p className="text-zinc-400 mt-2 text-sm animate-fade-in">
+            Preparing your recovery phrase...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (createdMnemonic && !showSuccessAnimation) {
+    return (
+      <div className="flex flex-col h-full p-4">
+        {/* Compact Header */}
         <div className="text-center mb-4">
-          <Wallet className="mx-auto mb-3 text-green-500" size={40} />
-          <h2 className="text-xl mb-2 text-white">Wallet Created!</h2>
+          <h2 className="text-lg text-white mb-1">Save Your Recovery Phrase</h2>
           <p className="text-zinc-400 text-xs">
-            Save your recovery phrase securely before setting up password
+            Write down these 12 words in order and store them safely
           </p>
         </div>
 
-        <div className="w-full max-w-sm mb-4">
-          <div className="bg-zinc-700 p-2 rounded-lg border border-zinc-600">
+        {/* Recovery Phrase Section */}
+        <div className="flex-1 flex flex-col">
+          <div className="mb-3">
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-zinc-400">Recovery Phrase</span>
               <div className="flex gap-1">
                 <button
                   onClick={copyMnemonic}
-                  className="p-1 text-zinc-400 hover:text-blue-400 hover:bg-zinc-600 rounded transition-colors"
+                  className="p-1.5 text-zinc-400 hover:text-blue-400 hover:bg-zinc-700 rounded transition-colors"
                   title="Copy to clipboard"
                 >
                   <CopyIcon size={14} />
                 </button>
                 <button
                   onClick={downloadMnemonic}
-                  className="p-1 text-zinc-400 hover:text-green-400 hover:bg-zinc-600 rounded transition-colors"
+                  className="p-1.5 text-zinc-400 hover:text-green-400 hover:bg-zinc-700 rounded transition-colors"
                   title="Download as file"
                 >
                   <Download size={14} />
                 </button>
-                <button
-                  onClick={() => setShowMnemonic(!showMnemonic)}
-                  className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-600 rounded transition-colors"
-                  title={showMnemonic ? "Hide phrase" : "Show phrase"}
-                >
-                  {showMnemonic ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
               </div>
             </div>
-            <div className="bg-zinc-800 p-2 rounded text-xs">
-              {showMnemonic ? (
+            
+            {/* Mnemonic Container with Reveal Overlay */}
+            <div className="relative bg-zinc-800 rounded-lg border border-zinc-600 overflow-hidden">
+              <div className="p-2.5">
                 <div className="grid grid-cols-3 gap-1">
                   {createdMnemonic.split(' ').map((word, index) => (
-                    <span key={index} className="text-white bg-zinc-700 px-1.5 py-2 rounded text-xs">
-                      {index + 1}. {word}
-                    </span>
+                    <div 
+                      key={index} 
+                      className={`bg-zinc-700 px-2 py-2 rounded-md ${!showMnemonic ? 'blur-sm' : ''}`}
+                    >
+                      <div className="text-zinc-400 text-xs font-medium mb-0.5">
+                        {index + 1}.
+                      </div>
+                      <div className="text-white text-xs font-mono">
+                        {word}
+                      </div>
+                    </div>
                   ))}
                 </div>
-              ) : (
-                <div className="text-zinc-500 py-2 text-center">Click the eye icon to reveal</div>
+              </div>
+              
+              {/* Center Overlay Button */}
+              {!showMnemonic && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                  <button
+                    onClick={() => setShowMnemonic(true)}
+                    className="flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg transition-colors border border-zinc-500"
+                  >
+                    <Eye size={18} />
+                    <span className="text-sm">Reveal Seed Phrase</span>
+                  </button>
+                </div>
+              )}
+              
+              {/* Hide button when visible */}
+              {showMnemonic && (
+                <div className="absolute top-2 right-2">
+                  <button
+                    onClick={() => setShowMnemonic(false)}
+                    className="p-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-400 hover:text-white rounded transition-colors"
+                    title="Hide phrase"
+                  >
+                    <EyeOff size={14} />
+                  </button>
+                </div>
               )}
             </div>
           </div>
-        </div>
 
-        <div className="mb-4 bg-blue-400/10 border border-blue-400/20 rounded-lg p-3 w-full max-w-sm">
-          <p className="text-blue-400 text-xs text-center">
-            <strong>Important:</strong> Write down your recovery phrase and store it safely.
-            You'll need it to restore your wallet if you forget your password.
-          </p>
-        </div>
-
-        {!seedPhraseExported && (
-          <div className="mb-2 bg-red-500/10 border border-red-500/20 rounded-lg p-2 w-full max-w-sm">
-            <p className="text-red-500 text-xs text-center">
-              <strong>Warning:</strong> Seed phrase not secured! Please export and back it up safely.
+          {/* Compact Important Message */}
+          <div className="mb-3 bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+            <p className="text-blue-400 text-xs text-center">
+              <strong>Important:</strong> Write down your recovery phrase and store it safely. You'll need it to restore your wallet if you forget your password.
             </p>
           </div>
-        )}
+        </div>
 
-        <button
-          onClick={handleContinue}
-          className="w-full max-w-sm bg-gradient-to-r from-cyan-400 to-purple-600 text-white py-2.5 px-6 rounded-lg hover:opacity-90 transition-opacity text-sm"
-        >
-          Continue & Set Password
-        </button>
+        {/* Bottom Button */}
+        <div className="mt-auto">
+          <button
+            onClick={handleContinue}
+            className="w-full bg-gradient-to-r from-cyan-400 to-purple-600 text-white py-3 px-6 rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
+          >
+            Set Password
+          </button>
+        </div>
       </div>
     );
   }

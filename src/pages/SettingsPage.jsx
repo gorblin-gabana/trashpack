@@ -1,23 +1,24 @@
 import { useState } from 'react';
-import { Copy, HelpCircle, ExternalLink, MessageSquare, CopyIcon, Save, Trash2, Edit3, Settings as SettingsIcon, Key, Eye, EyeOff, Download } from 'lucide-react';
+import { HelpCircle, ExternalLink, MessageSquare, CopyIcon, Save, Trash2, Edit3, Wallet } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useAuthStore, useUIStore, useWalletStore } from '../store';
+import { useNavigate } from 'react-router-dom';
+import { useUIStore, useWalletStore } from '../store';
 import BackBtn from '../components/BackBtn';
 import { copyToClipboard } from '../util';
 
 function SettingsPage({ requireUnlock }) {
-  const { principal } = useAuthStore();
+  const navigate = useNavigate();
   const { setHelpModalOpen } = useUIStore();
   const {
-    walletAddress,
     selectedNetwork,
     selectedEnvironment,
     hasWallet,
-    mnemonic,
     getCurrentRpcUrl,
     setCustomRpcUrl,
     resetRpcUrl,
-    getFilteredNetworks
+    getFilteredNetworks,
+    setSelectedNetwork,
+    setSelectedEnvironment
   } = useWalletStore();
   const [isEditingRpc, setIsEditingRpc] = useState(false);
   const [rpcUrlInput, setRpcUrlInput] = useState('');
@@ -27,13 +28,18 @@ function SettingsPage({ requireUnlock }) {
   const defaultRpcUrl = selectedNetwork?.rpcUrl;
   const isCustomRpc = currentRpcUrl !== defaultRpcUrl;
 
-  const handleCopyPrincipal = async () => {
-    const result = await copyToClipboard(walletAddress, 'Wallet Address');
-    if (result.success) {
-      toast.success(result.message);
-    } else {
-      toast.error(result.message);
+  const handleNetworkChange = (networkIndex) => {
+    const filteredNetworks = getFilteredNetworks();
+    const network = filteredNetworks[networkIndex];
+    if (network) {
+      setSelectedNetwork(network);
+      toast.success(`Switched to ${network.name}`);
     }
+  };
+
+  const handleEnvironmentChange = (environment) => {
+    setSelectedEnvironment(environment);
+    toast.success(`Switched to ${environment}`);
   };
 
   const handleHelpClick = () => {
@@ -46,6 +52,10 @@ function SettingsPage({ requireUnlock }) {
 
   const handleSupport = () => {
     window.open('https://discord.gg/gorbagana', '_blank');
+  };
+
+  const handleWalletSettings = () => {
+    navigate('/wallet-settings');
   };
 
   const handleRpcClick = async () => {
@@ -268,18 +278,20 @@ function SettingsPage({ requireUnlock }) {
           </p>
         </div>
 
-        {/* Quick Actions */}
+        {/* General Actions */}
         <div className="bg-neutral-700 border border-zinc-600 rounded-lg p-3">
-          <label className="block text-xs text-zinc-400 mb-3 uppercase tracking-wide">Quick Actions</label>
+          <label className="block text-xs text-zinc-400 mb-3 uppercase tracking-wide">General</label>
 
           <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={handleCopyPrincipal}
-              className="p-2 bg-zinc-800 border border-zinc-600 rounded-md hover:bg-zinc-700 transition-colors flex items-center gap-2 text-sm text-white"
-            >
-              <Copy size={14} />
-              Copy Address
-            </button>
+            {hasWallet && (
+              <button
+                onClick={handleWalletSettings}
+                className="p-2 bg-zinc-800 border border-zinc-600 rounded-md hover:bg-zinc-700 transition-colors flex items-center gap-2 text-sm text-white"
+              >
+                <Wallet size={14} />
+                Wallet Settings
+              </button>
+            )}
 
             <button
               onClick={handleHelpClick}
@@ -299,122 +311,13 @@ function SettingsPage({ requireUnlock }) {
 
             <button
               onClick={handleExplorer}
-              className="p-2 bg-zinc-800 border border-zinc-600 rounded-md hover:bg-zinc-700 transition-colors flex items-center gap-2 text-sm text-white"
+              className="p-2 bg-zinc-800 border border-zinc-600 rounded-md hover:bg-zinc-700 transition-colors flex items-center gap-2 text-sm text-white col-span-2"
             >
               <ExternalLink size={14} />
               Explorer
             </button>
           </div>
         </div>
-
-        {/* Backup Section - Only show if wallet exists */}
-        {hasWallet && (
-          <div className="bg-zinc-700 p-4 rounded-lg border border-zinc-600">
-            <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
-              <Key size={20} />
-              Backup Wallet
-            </h3>
-            <p className="text-sm text-zinc-400 mb-4">
-              Export your mnemonic phrase to backup your wallet. Keep it safe and never share it.
-            </p>
-
-            {!showMnemonic ? (
-              <button
-                onClick={handleExportMnemonic}
-                className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm flex items-center gap-2"
-              >
-                <Eye size={16} />
-                Show Mnemonic Phrase
-              </button>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-zinc-800 p-3 rounded">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-zinc-400">Recovery Phrase</span>
-                    <button
-                      onClick={() => setShowMnemonic(false)}
-                      className="text-zinc-400 hover:text-white"
-                    >
-                      <EyeOff size={16} />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {mnemonic ? (
-                      mnemonic.split(' ').map((word, index) => (
-                        <span key={index} className="text-white bg-zinc-700 px-2 py-1 rounded text-xs">
-                          {index + 1}. {word}
-                        </span>
-                      ))
-                    ) : (
-                      <div className="col-span-3 text-red-400 text-xs text-center">
-                        Wallet must be unlocked to view mnemonic
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={copyMnemonic}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-sm flex items-center justify-center gap-2"
-                  >
-                    <Key size={16} />
-                    Copy
-                  </button>
-                  <button
-                    onClick={downloadMnemonic}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded text-sm flex items-center justify-center gap-2"
-                  >
-                    <Download size={16} />
-                    Download
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Danger Zone - Only show if wallet exists */}
-        {hasWallet && (
-          <div className="bg-red-900/20 p-4 rounded-lg border border-red-600/30">
-            <h3 className="text-lg font-semibold mb-3 text-red-400 flex items-center gap-2">
-              <Trash2 size={20} />
-              Danger Zone
-            </h3>
-            <p className="text-sm text-zinc-400 mb-4">
-              Permanently delete your wallet from this device. Make sure you have backed up your mnemonic phrase.
-            </p>
-
-            {!showDeleteConfirm ? (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded text-sm"
-              >
-                Delete Wallet
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-red-400">
-                  Are you sure? This action cannot be undone. You will need your mnemonic phrase to restore your wallet.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleDeleteWallet}
-                    className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded text-sm"
-                  >
-                    Yes, Delete Wallet
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="bg-zinc-600 hover:bg-zinc-700 text-white py-2 px-4 rounded text-sm"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

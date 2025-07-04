@@ -15,6 +15,7 @@ import SendPage from './pages/SendPage';
 import ReceivePage from './pages/ReceivePage';
 import BridgePage from './pages/BridgePage';
 import SettingsPage from './pages/SettingsPage';
+import WalletSettings from './pages/WalletSettings';
 import ConnectionRequestPage from './pages/ConnectionRequestPage';
 import TestConnectionPage from './pages/TestConnectionPage';
 import AuthHandler from './components/AuthHandler';
@@ -52,8 +53,6 @@ function App() {
     initAuth,
     logout
   } = useAuthStore();
-
-  console.log('🔗 App init - Connection request detected:', isConnectionRequest, window.location.href);
 
   const {
     generateWallet,
@@ -247,6 +246,7 @@ function App() {
                     <Route path="/receive" element={<ReceivePage />} />
                     <Route path="/bridge" element={<BridgePage requireUnlock={requireUnlock} />} />
                     <Route path="/settings" element={<SettingsPage requireUnlock={requireUnlock} />} />
+                    <Route path="/wallet-settings" element={<WalletSettings requireUnlock={requireUnlock} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </>
                 )}

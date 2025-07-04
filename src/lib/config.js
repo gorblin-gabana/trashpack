@@ -2,7 +2,7 @@ export const networks = [
     {
         id: 'gorbchain-mainnet',
         name: 'Gorbagana',
-        symbol: 'GOR',
+        symbol: 'GORB',
         icon: '/icons/gorbchain.png',
         color: 'bg-teal-600',
         rpcUrl: 'https://rpc.gorbchain.xyz',
@@ -12,7 +12,7 @@ export const networks = [
         explorerUrl: (txHash) => `https://gorbscan.com/tx/${txHash}`
     },
     {
-        id: 'solana',
+        id: 'solana-devnet',
         name: 'Solana',
         symbol: 'SOL',
         icon: 'https://assets.coingecko.com/coins/images/4128/standard/solana.png?1718769756',
@@ -25,17 +25,17 @@ export const networks = [
     {
         id: 'gorbchain-devnet',
         name: 'Gorbagana',
-        symbol: 'GOR',
+        symbol: 'GORB',
         icon: '/icons/gorbchain.png',
         color: 'bg-teal-600',
         rpcUrl: 'https://devnet.gorbchain.xyz',
         wsUrl: 'wss://devnet.gorbchain.xyz/ws',
         chain: 'gorbagana',
-        environment: "mainnet",
+        environment: "devnet",
         explorerUrl: (txHash) => `https://devnet.gorbscan.com/tx/${txHash}`
     },
     {
-        id: 'solana',
+        id: 'solana-mainnet',
         name: 'Solana',
         symbol: 'SOL',
         icon: 'https://assets.coingecko.com/coins/images/4128/standard/solana.png?1718769756',

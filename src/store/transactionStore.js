@@ -45,8 +45,6 @@ export const useTransactionStore = create((set, get) => ({
       throw new Error('Missing required parameters for transaction');
     }
 
-    console.log("keypair", getKeypair().publicKey, getKeypair().publicKey.toString());
-
     const keypair = getKeypair();
     if (!keypair) {
       throw new Error('No wallet keypair available');
@@ -99,7 +97,6 @@ export const useTransactionStore = create((set, get) => ({
 
         // Create signature using the secret key
         const signature = nacl.default.sign.detached(messageBytes, keypair.secretKey);
-        console.log("Signature created, length:", signature.length);
 
         // Step 3: Create wire transaction format manually
         // Format: [num_signatures] + [signature] + [message]
@@ -109,20 +106,13 @@ export const useTransactionStore = create((set, get) => ({
           Buffer.from(messageBytes) // the message
         ]);
 
-        console.log("Wire transaction created, total length:", wireTransaction.length);
-
         // Step 4: Send the raw wire transaction
-        console.log("Sending wire transaction...");
         const signature_result = await connection.sendRawTransaction(wireTransaction, {
           skipPreflight: false,
           preflightCommitment: 'confirmed'
         });
 
-                        console.log("✅ Transaction sent successfully with signature:", signature_result);
-
         // Simple confirmation check using new API
-        console.log("Confirming transaction...");
-
         // Get the latest blockhash for confirmation strategy
         const latestBlockhash = await connection.getLatestBlockhash('confirmed');
 
@@ -139,7 +129,6 @@ export const useTransactionStore = create((set, get) => ({
           throw new Error('Transaction failed: ' + JSON.stringify(confirmation.value.err));
         }
 
-        console.log("✅ Transaction confirmed successfully:", signature_result);
         set({
           txResult: signature_result,
           isLoadingSend: false

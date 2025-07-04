@@ -8,15 +8,26 @@ function BalanceDisplay() {
 
   useEffect(() => {
     clearInterval(intervalRef.current);
-    fetchBalance();
-    intervalRef.current = setInterval(() => {
-      fetchBalance();
-    }, 10000);
+    
+    const safeFetchBalance = async () => {
+      try {
+        await fetchBalance();
+      } catch (err) {
+        console.error('Balance fetch error in useEffect:', err);
+      }
+    };
+    
+    safeFetchBalance();
+    intervalRef.current = setInterval(safeFetchBalance, 10000);
     return () => clearInterval(intervalRef.current);
   }, [selectedNetwork, selectedEnvironment, fetchBalance]);
 
-  const handleRefresh = () => {
-    fetchBalance();
+  const handleRefresh = async () => {
+    try {
+      await fetchBalance();
+    } catch (err) {
+      console.error('Balance refresh error:', err);
+    }
   };
 
   return (

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Key, Download, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Key, Download, Eye, EyeOff, Trash2, Copy, Wallet } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore, useUIStore, useWalletStore } from '../store';
 import BackBtn from '../components/BackBtn';
+import { copyToClipboard } from '../util';
 
 function WalletSettings({ requireUnlock }) {
   const { logout } = useAuthStore();
@@ -11,7 +12,8 @@ function WalletSettings({ requireUnlock }) {
     exportMnemonic,
     clearWallet,
     mnemonic,
-    hasWallet
+    hasWallet,
+    walletAddress
   } = useWalletStore();
 
   const [showMnemonic, setShowMnemonic] = useState(false);
@@ -103,6 +105,15 @@ function WalletSettings({ requireUnlock }) {
     }
   };
 
+  const handleCopyAddress = async () => {
+    const result = await copyToClipboard(walletAddress, 'Wallet Address');
+    if (result.success) {
+      toast.success(result.message);
+    } else {
+      toast.error(result.message);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full overflow-y-auto pr-2 -mr-3">
       <div className="flex mb-6">
@@ -174,6 +185,26 @@ function WalletSettings({ requireUnlock }) {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Wallet Address Section */}
+        <div className="bg-zinc-700 p-4 rounded-lg border border-zinc-600">
+          <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+            <Wallet size={20} />
+            Wallet Address
+          </h3>
+          <p className="text-sm text-zinc-400 mb-4">
+            Your unique wallet address. You can use this to receive funds.
+          </p>
+          <div className="bg-zinc-800 p-3 rounded flex items-center gap-2">
+            <span className="text-sm text-zinc-400">{walletAddress}</span>
+            <button
+              onClick={handleCopyAddress}
+              className="text-zinc-400 hover:text-white"
+            >
+              <Copy size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Security Information */}
