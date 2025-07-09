@@ -37,10 +37,47 @@ export function parseTransactionError(error) {
 
   // Handle simulation failed errors
   if (errorMsg.includes("simulation failed")) {
+    // Try to extract specific simulation error details
     if (errorMsg.includes("insufficient lamports")) {
       return "Insufficient balance for this transaction";
+    } else if (errorMsg.includes("programaccountnotfound")) {
+      return "System program error. This may be due to incorrect transaction format. Please try again";
+    } else if (errorMsg.includes("custom program error")) {
+      return "Program error during transaction simulation. Please check your inputs";
+    } else if (errorMsg.includes("instruction error")) {
+      return "Invalid transaction instruction. Please verify the transaction details";
+    } else if (errorMsg.includes("already in use")) {
+      return "Account already in use. Please try again later";
+    } else if (errorMsg.includes("account not found")) {
+      return "Account not found. Please verify the addresses";
     } else {
-      return "Transaction validation failed. Please check your inputs";
+      // Extract JSON error details if available
+      try {
+        const jsonMatch = error.message.match(/\{[^}]+\}/);
+        if (jsonMatch) {
+          const errorData = JSON.parse(jsonMatch[0]);
+          if (errorData.InstructionError) {
+            return `Transaction instruction error: ${JSON.stringify(errorData.InstructionError)}`;
+          }
+          if (errorData.Custom) {
+            return `Custom program error: ${errorData.Custom}`;
+          }
+        }
+      } catch (parseErr) {
+        console.warn("Could not parse error JSON:", parseErr);
+      }
+      return "Transaction validation failed during simulation. Please check your inputs";
+    }
+  }
+
+  // Handle preflight/simulation specific errors
+  if (errorMsg.includes("preflight") || errorMsg.includes("simulate")) {
+    if (errorMsg.includes("insufficient funds") || errorMsg.includes("insufficient lamports")) {
+      return "Insufficient balance detected during preflight check";
+    } else if (errorMsg.includes("blockhash")) {
+      return "Blockhash issue detected during preflight. Please try again";
+    } else {
+      return "Transaction preflight check failed. Please verify your transaction details";
     }
   }
 
@@ -78,7 +115,6 @@ export function parseTransactionError(error) {
  */
 export function handleTransactionError(error, toast) {
   const friendlyMessage = parseTransactionError(error);
-  console.log("User-friendly error:", friendlyMessage);
 
   if (toast) {
     toast.error(friendlyMessage);

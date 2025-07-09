@@ -12,7 +12,7 @@ function Layout({ onLogout }) {
   return (
     <>
       <WalletHeader onLogout={onLogout} />
-      <div className="flex-grow p-4 overflow-y-auto flex flex-col gap-3">
+      <div className="flex-grow px-3 py-2 overflow-y-auto flex flex-col gap-2">
         <Outlet />
       </div>
     </>

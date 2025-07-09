@@ -1,10 +1,11 @@
-import { LogOut, ArrowLeft, Home, ChevronDown, Plus, Edit2, Lock, X } from 'lucide-react';
+import { LogOut, ArrowLeft, ChevronDown, Plus, Edit2, Lock, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import Jdenticon from 'react-jdenticon';
 // import HamburgerMenu from './HamburgerMenu';
 import { useAuthStore, useWalletStore } from '../store';
+import AddAccountModal from './AddAccountModal';
 
 function WalletHeader({ onLogout }) {
   const { principal } = useAuthStore();
@@ -22,13 +23,14 @@ function WalletHeader({ onLogout }) {
     unlockWallet,
     isWalletUnlocked 
   } = useWalletStore();
-  const isHomePage = location.pathname === '/';
+
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
   const [newAccountName, setNewAccountName] = useState('');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [password, setPassword] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
+  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const dropdownRef = useRef(null);
   
   const activeAccount = accounts && accounts.length > 0 ? (accounts[activeAccountIndex] || accounts[0]) : null;
@@ -55,9 +57,9 @@ function WalletHeader({ onLogout }) {
     navigate('/settings');
   };
 
-  const handleAccountSelect = async (account) => {
+  const handleAccountSelect = async (accountIndex) => {
     try {
-      await switchAccount(account.index);
+      await switchAccount(accountIndex);
       setShowAccountDropdown(false);
     } catch (err) {
       console.error('Error switching account:', err);
@@ -65,22 +67,9 @@ function WalletHeader({ onLogout }) {
     }
   };
 
-  const handleAddAccount = async () => {
-    try {
-      await addAccount();
-      setShowAccountDropdown(false);
-    } catch (err) {
-      console.error('Error adding account:', err);
-      
-      // Check if it's an unlock issue
-      if (err.message.includes('unlock')) {
-        // Show password prompt instead of alert
-        setShowPasswordPrompt(true);
-        setShowAccountDropdown(false);
-      } else {
-        toast.error('Failed to add account: ' + err.message);
-      }
-    }
+  const handleAddAccount = () => {
+    setShowAddAccountModal(true);
+    setShowAccountDropdown(false);
   };
 
   const handleUnlockAndAddAccount = async () => {
@@ -173,22 +162,9 @@ function WalletHeader({ onLogout }) {
           {selectedNetwork.environment}
         </span>
 
-        {/* Session Indicator */}
-        {hasWallet && (
-          <div className="flex items-center gap-1">
-            <div className={`w-2 h-2 rounded-full ${
-              isWalletUnlocked() ? 'bg-green-400' : 'bg-yellow-400'
-            }`}></div>
-            <span className={`text-xs ${
-              isWalletUnlocked() ? 'text-green-400' : 'text-yellow-400'
-            }`}>
-              {isWalletUnlocked() ? 'Unlocked' : 'Locked'}
-            </span>
-          </div>
-        )}
       </div>
 
-            <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {/* Account Dropdown - Only show when wallet exists */}
         {shouldShowAccountDropdown && (
           <div className="relative" ref={dropdownRef}>
@@ -228,16 +204,16 @@ function WalletHeader({ onLogout }) {
                   
                   {/* Show accounts if they exist, otherwise show current wallet as default account */}
                   {accounts && accounts.length > 0 ? (
-                    accounts.map((account) => (
+                    accounts.map((account, arrayIndex) => (
                       <div key={account.index} className="mb-1">
                         <div
                           className={`w-full flex items-center justify-between p-2 rounded-lg hover:bg-zinc-700 transition-colors cursor-pointer ${
-                            account.index === activeAccountIndex ? 'bg-zinc-700' : ''
+                            arrayIndex === activeAccountIndex ? 'bg-zinc-700' : ''
                           }`}
                         >
                           <div 
                             className="flex-1 flex items-center gap-2"
-                            onClick={() => handleAccountSelect(account)}
+                            onClick={() => handleAccountSelect(arrayIndex)}
                           >
                             <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-zinc-600">
                               <Jdenticon 
@@ -248,7 +224,7 @@ function WalletHeader({ onLogout }) {
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <div className="text-sm text-white">{account.name}</div>
-                                {account.index === activeAccountIndex && (
+                                {arrayIndex === activeAccountIndex && (
                                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                 )}
                               </div>
@@ -312,15 +288,7 @@ function WalletHeader({ onLogout }) {
           </div>
         )}
 
-        {!isHomePage && (
-          <button
-            onClick={() => navigate('/')}
-            className="p-1.5 text-zinc-400 hover:text-white transition-colors"
-            title="Home"
-          >
-            <Home size={16} />
-          </button>
-        )}
+
 
         {/* <button
           onClick={onLogout}
@@ -437,6 +405,12 @@ function WalletHeader({ onLogout }) {
           </div>
         </div>
       )}
+
+      {/* Add Account Modal */}
+      <AddAccountModal
+        isOpen={showAddAccountModal}
+        onClose={() => setShowAddAccountModal(false)}
+      />
     </div>
   );
 }

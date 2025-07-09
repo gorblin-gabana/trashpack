@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import { useTransactionStore, useWalletStore, useUIStore } from '../store';
 import SendTransactionPopup from './SendTransactionPopup';
+import PasswordPrompt from './PasswordPrompt';
 import { useNavigate } from 'react-router-dom';
 import secureStorage from '../util/secureStorage';
+import { formatBalance } from '../util';
 
 function SendForm() {
   const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [showPopup, setShowPopup] = useState(false);
+  const [showUnlockPrompt, setShowUnlockPrompt] = useState(false);
   const [recentAddress, setRecentAddress] = useState('');
 
   const { sendTransaction, isLoadingSend, getTransactions, clearTransactionResult } = useTransactionStore();
@@ -42,10 +45,7 @@ function SendForm() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!toAddress || !amount) return;
-
+  const performTransaction = async () => {
     try {
       clearError();
       clearTransactionResult(); // Clear any previous results
@@ -57,20 +57,43 @@ function SendForm() {
         walletAddress,
         getKeypair,
         selectedNetwork,
-        getCurrentRpcUrl
+        getCurrentRpcUrl,
+        selectedEnvironment
       });
 
       // Save the address as recent address after successful transaction
       await saveRecentAddress(toAddress);
 
-      await getTransactions(walletAddress, selectedNetwork.chain, selectedEnvironment);
-      // Refresh balance after successful transaction
-      setTimeout(async () => await fetchBalance(), 3000);
-      setTimeout(async () => await fetchBalance(), 10000);
+      await getTransactions(walletAddress, selectedNetwork.chain, selectedEnvironment, selectedNetwork, getCurrentRpcUrl);
+      // Refresh balance after successful transaction (single call after 5 seconds)
+      setTimeout(async () => await fetchBalance(), 5000);
     } catch (err) {
-      setError(err.message);
-      setShowPopup(false); // Hide popup on error
+      // Check if the error is due to wallet being locked
+      if (err.message.includes('unlock your wallet')) {
+        setShowPopup(false); // Hide transaction popup
+        setShowUnlockPrompt(true); // Show unlock prompt
+      } else {
+        setError(err.message);
+        setShowPopup(false); // Hide popup on error
+      }
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!toAddress || !amount) return;
+
+    await performTransaction();
+  };
+
+  const handleUnlock = async () => {
+    setShowUnlockPrompt(false);
+    // Retry the transaction after successful unlock
+    await performTransaction();
+  };
+
+  const handleUnlockCancel = () => {
+    setShowUnlockPrompt(false);
   };
 
   const handleClosePopup = () => {
@@ -100,12 +123,25 @@ function SendForm() {
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 
+  // If unlock prompt is showing, only show that
+  if (showUnlockPrompt) {
+    return (
+      <div className="w-full max-w-lg">
+        <PasswordPrompt
+          onUnlock={handleUnlock}
+          onCancel={handleUnlockCancel}
+        />
+      </div>
+    );
+  }
+
   return (
     <>
-      <div className="w-full max-w-lg p-2">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
+      <div className="w-full max-w-lg">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Recipient Address Section */}
+          <div className="bg-zinc-800 border border-zinc-600 rounded-lg p-4">
+            <label className="block text-sm font-medium text-zinc-300 mb-3">
               Recipient Address
             </label>
             <input
@@ -113,39 +149,54 @@ function SendForm() {
               value={toAddress}
               onChange={(e) => setToAddress(e.target.value)}
               placeholder="Enter Solana address..."
-              className="w-full bg-zinc-700 border border-zinc-600 text-white p-3 rounded-lg text-sm placeholder-zinc-400 focus:outline-none focus:border-cyan-400"
+              className="w-full bg-zinc-700 border border-zinc-600 text-white p-2.5 rounded-md text-sm placeholder-zinc-400 focus:outline-none focus:border-cyan-400"
               required
             />
 
-            {/* Recent address suggestion */}
+            {/* Recent address suggestion - more compact */}
             {recentAddress && !toAddress && (
-              <div className="mt-2">
-                <p className="text-xs text-zinc-400 mb-2">Recently used address:</p>
-                <button
-                  type="button"
-                  onClick={() => handleAddressSuggestionClick(recentAddress)}
-                  className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 rounded-md px-3 py-1.5 text-sm text-zinc-300 w-full hover:text-white transition-colors"
-                  title={recentAddress}
-                >
-                  {truncateAddress(recentAddress)}
-                </button>
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-zinc-400">Recent:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleAddressSuggestionClick(recentAddress)}
+                    className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-500 rounded px-3 py-1 text-xs text-zinc-300 hover:text-white transition-colors"
+                    title={recentAddress}
+                  >
+                    {truncateAddress(recentAddress)}
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">
-              Amount ({selectedNetwork.symbol})
-            </label>
+          {/* Amount Section */}
+          <div className="bg-zinc-800 border border-zinc-600 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-zinc-300">
+                Amount ({selectedNetwork.symbol})
+              </label>
+              <div className="flex items-center gap-2 text-xs">
+                {Boolean(balance) ? (
+                  <span className="text-zinc-400">
+                    Available: <span className="text-white font-medium">{formatBalance(balance, false)}</span>
+                  </span>
+                ) : (
+                  <span className="text-red-400">Insufficient Balance</span>
+                )}
+              </div>
+            </div>
+            
             <div className="relative">
               <input
                 type="number"
-                step="0.1"
+                step="any"
                 min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.0"
-                className="w-full bg-zinc-700 border border-zinc-600 text-white p-3 rounded-lg text-sm placeholder-zinc-400 focus:outline-none focus:border-cyan-400 pr-16"
+                className="w-full bg-zinc-700 border border-zinc-600 text-white p-2.5 rounded-md text-sm placeholder-zinc-400 focus:outline-none focus:border-cyan-400 pr-16"
                 required
               />
               <button
@@ -157,21 +208,15 @@ function SendForm() {
                 MAX
               </button>
             </div>
-            {Boolean(balance) ? (
-              <p className="text-xs text-zinc-400 mt-1">
-                Available: {Number(balance).toFixed(6)} {selectedNetwork.symbol}
-              </p>
-            ) : (
-              <p className="text-xs text-red-400 mt-1">Insufficient Balance</p>
-            )}
           </div>
 
+          {/* Send Button */}
           <button
             type="submit"
             disabled={!toAddress || !amount || isLoadingSend}
-            className="w-full bg-gradient-to-r from-cyan-400 to-purple-600 text-white py-3 px-6 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-cyan-400 to-purple-600 text-white py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
           >
-            <Send size={20} />
+            <Send size={18} />
             {isLoadingSend ? 'Sending...' : 'Send Transaction'}
           </button>
         </form>

@@ -1,7 +1,7 @@
 export const networks = [
     {
         id: 'gorbchain-mainnet',
-        name: 'Gorbagana',
+        name: 'Gorbchain',
         symbol: 'GORB',
         icon: '/icons/gorbchain.png',
         color: 'bg-teal-600',
@@ -9,7 +9,7 @@ export const networks = [
         wsUrl: 'wss://rpc.gorbchain.xyz/ws',
         chain: 'gorbagana',
         environment: "mainnet",
-        explorerUrl: (txHash) => `https://gorbscan.com/tx/${txHash}`
+        explorerUrl: (txHash) => `https://gorbscan.com/transactions?search=${txHash}`
     },
     {
         id: 'solana-devnet',
@@ -24,7 +24,7 @@ export const networks = [
     },
     {
         id: 'gorbchain-devnet',
-        name: 'Gorbagana',
+        name: 'Gorbchain',
         symbol: 'GORB',
         icon: '/icons/gorbchain.png',
         color: 'bg-teal-600',

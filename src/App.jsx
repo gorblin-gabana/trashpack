@@ -13,7 +13,7 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import SendPage from './pages/SendPage';
 import ReceivePage from './pages/ReceivePage';
-import BridgePage from './pages/BridgePage';
+import CrossChainSwapPage from './pages/BridgePage';
 import SettingsPage from './pages/SettingsPage';
 import WalletSettings from './pages/WalletSettings';
 import ConnectionRequestPage from './pages/ConnectionRequestPage';
@@ -244,7 +244,7 @@ function App() {
                     <Route index element={<HomePage />} />
                     <Route path="/send" element={<SendPage requireUnlock={requireUnlock} />} />
                     <Route path="/receive" element={<ReceivePage />} />
-                    <Route path="/bridge" element={<BridgePage requireUnlock={requireUnlock} />} />
+                    <Route path="/bridge" element={<CrossChainSwapPage requireUnlock={requireUnlock} />} />
                     <Route path="/settings" element={<SettingsPage requireUnlock={requireUnlock} />} />
                     <Route path="/wallet-settings" element={<WalletSettings requireUnlock={requireUnlock} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />

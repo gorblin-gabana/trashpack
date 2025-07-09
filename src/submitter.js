@@ -1,5 +1,6 @@
 import { address, createSolanaRpc, devnet } from '@solana/kit';
 import { Buffer } from 'buffer';
+import { SystemProgram, Transaction } from '@solana/web3.js';
 
 /**
  * Create and prepare a transaction for signing
@@ -15,17 +16,13 @@ export async function prepareTransaction(params) {
         const receiver = address(receiverPublicKeyString);
         const transferAmount = transferAmt * 1000000000; // 0.0001 SOL in lamports
 
-        console.log(`Preparing transaction to transfer 0.0001 SOL from ${sender.toString()} to ${receiver.toString()}`);
-
         // Get fresh blockhash
         const { blockhash, lastValidBlockHeight } = await rpc.getLatestBlockhash("finalized");
-        console.log(`Got blockhash: ${blockhash} (valid until block height: ${lastValidBlockHeight})`);
 
         // Get current block height to estimate time left
         const currentBlockHeight = await rpc.getBlockHeight();
         const blocksRemaining = lastValidBlockHeight - currentBlockHeight;
         const estimatedTimeRemaining = blocksRemaining * 0.4; // ~0.4 seconds per block
-        console.log(`Current block height: ${currentBlockHeight}, estimated time until expiration: ~${estimatedTimeRemaining.toFixed(0)} seconds`);
 
         // Create transfer instruction
         const transferInstruction = SystemProgram.transfer({
@@ -42,10 +39,6 @@ export async function prepareTransaction(params) {
         // Serialize the message
         const messageBytes = transaction.serializeMessage();
         const base64Message = Buffer.from(messageBytes).toString('base64');
-
-        console.log("\n===== MESSAGE THAT NEEDS TO BE SIGNED =====");
-        console.log(base64Message);
-        console.log("==========================================\n");
 
         return {
             rpc,
@@ -76,16 +69,11 @@ export async function completeTransaction(params) {
             return null;
         }
 
-        console.log(`Blockhash is still valid. Current height: ${currentBlockHeight}, Last valid height: ${lastValidBlockHeight}`);
-        console.log(`Time remaining: ~${((lastValidBlockHeight - currentBlockHeight) * 0.4).toFixed(0)} seconds`);
-
         // Convert signature to buffer
         const signatureBuffer = Buffer.from(signatureHex, "hex");
-        console.log(`Signature (${signatureBuffer.length} bytes): ${signatureHex.substring(0, 20)}...`);
 
         // Convert message to buffer
         const messageBuffer = Buffer.from(base64Message, "base64");
-        console.log(`Message (${messageBuffer.length} bytes): ${base64Message.substring(0, 20)}...`);
 
         // Create wire transaction format
         const wireTransaction = Buffer.concat([
@@ -94,76 +82,66 @@ export async function completeTransaction(params) {
             messageBuffer
         ]);
 
-        console.log(`\nSending transaction with wire format (${wireTransaction.length} bytes)...`);
-
         // Send transaction
         try {
-            // Method 1: Using sendRawTransaction
-            console.log("Trying method 1: sendRawTransaction...");
+            // First, simulate the transaction to check for potential issues
+            const simResult = await rpc.simulateTransaction(wireTransaction, {
+                sigVerify: false,
+                commitment: "confirmed"
+            });
+            
+            if (simResult.value.err) {
+                console.error("Transaction simulation failed:", simResult.value.err);
+                throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}`);
+            }
+
+            // Method 1: Using sendRawTransaction with preflight enabled
             const txid1 = await rpc.sendRawTransaction(wireTransaction, {
-                skipPreflight: true,
+                skipPreflight: false,
                 preflightCommitment: "confirmed"
             });
-            console.log(`Transaction sent with ID: ${txid1}`);
 
-            // Method 2: Using _rpcRequest
-            console.log("Trying method 2: _rpcRequest...");
+            // Method 2: Using _rpcRequest with preflight enabled as backup
             const encodedTransaction = wireTransaction.toString("base64");
             const rpcResponse = await rpc._rpcRequest("sendTransaction", [
                 encodedTransaction,
-                { encoding: "base64", skipPreflight: true, preflightCommitment: "confirmed" }
+                { encoding: "base64", skipPreflight: false, preflightCommitment: "confirmed" }
             ]);
 
             if (rpcResponse.error) {
                 console.error("RPC Error:", rpcResponse.error);
-            } else {
-                console.log(`Transaction sent with ID: ${rpcResponse.result}`);
+                throw new Error(`RPC Error: ${rpcResponse.error.message}`);
             }
 
             // Check transaction status after a short delay
             const txid = txid1 || rpcResponse.result;
             if (txid) {
-                console.log(`\nWaiting 5 seconds to check transaction status...`);
                 await new Promise(resolve => setTimeout(resolve, 5000));
 
                 const status = await rpc.getSignatureStatus(txid);
-                console.log("Transaction status:", status);
 
                 if (status.value === null) {
-                    console.log("\nTransaction not found on network. Possible reasons:");
-                    console.log("1. Blockhash expired between submission and processing");
-                    console.log("2. Signature verification failed (incorrect signature)");
-                    console.log("3. Insufficient funds or other runtime errors");
-
                     // Try to get more details
                     try {
                         const simResult = await rpc.simulateTransaction(wireTransaction);
-                        console.log("\nSimulation result:", simResult);
                     } catch (simError) {
-                        console.log("\nSimulation error:", simError);
+                        // Simulation also failed
                     }
                 } else if (status.value.err) {
-                    console.log("\nTransaction error:", status.value.err);
-                } else {
-                    console.log("\nTransaction successful!");
-                    console.log(`View on Solana Explorer: https://explorer.solana.com/tx/${txid}?cluster=devnet`);
+                    console.error("Transaction error:", status.value.err);
                 }
             }
 
             return txid;
         } catch (sendError) {
             console.error("Error sending transaction:", sendError);
-
-            // Try simulation to get more details
-            try {
-                console.log("\nSimulating transaction to get more details...");
-                const simResult = await rpc.simulateTransaction(wireTransaction);
-                console.log("Simulation result:", simResult);
-            } catch (simError) {
-                console.log("Simulation error:", simError);
-            }
-
-            throw sendError;
+            
+            // Since we already simulated upfront, if we get here it means the actual send failed
+            // after successful simulation. This could be due to network issues, timing, etc.
+            console.error("Note: Transaction passed simulation but failed during actual send");
+            console.error("Possible causes: network congestion, timing issues, or RPC problems");
+            
+            throw new Error(`Transaction send failed: ${sendError.message}`);
         }
     } catch (error) {
         console.error("Error completing transaction:", error);

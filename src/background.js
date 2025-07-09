@@ -2,8 +2,6 @@
 
 // Handle extension installation
 chrome.runtime.onInstalled.addListener((details) => {
-  console.log('TrashPack Wallet Extension installed:', details);
-
   // Set up default storage values
   chrome.storage.sync.set({
     isAuthenticated: false,
@@ -15,14 +13,11 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // Handle extension startup
 chrome.runtime.onStartup.addListener(() => {
-  console.log('TrashPack Wallet Extension started');
+  // Extension started
 });
 
 // Handle messages from popup or content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('🎯 Background received message:', message.type, 'from tab:', sender.tab?.id);
-  console.log('🎯 Full message details:', { message, sender });
-
   switch (message.type) {
     case 'GET_STORAGE':
       chrome.storage.sync.get(message.keys, (result) => {
@@ -89,14 +84,9 @@ const pendingConnectionRequests = new Map();
 
 // Handle connection requests from dApps
 async function handleConnectionRequest(message, sender, sendResponse) {
-  console.log('🔗 Background: Processing connection request from:', sender.tab?.url);
-
   try {
     const storage = await chrome.storage.sync.get(['isAuthenticated', 'walletAddress']);
     const siteUrl = new URL(sender.tab.url).origin;
-
-    console.log('🔗 Background: Storage check:', { isAuthenticated: storage.isAuthenticated, hasWallet: !!storage.walletAddress });
-    console.log('🔗 Background: Site URL:', siteUrl);
 
     // Generate unique request ID for this connection attempt
     const requestId = Date.now() + Math.random().toString(36).substr(2, 9);
@@ -115,13 +105,9 @@ async function handleConnectionRequest(message, sender, sendResponse) {
     const siteFavicon = sender.tab.favIconUrl || null;
 
     if (!storage.isAuthenticated) {
-      console.log('🔑 User not authenticated, opening extension popup first...');
-
       // Open extension popup for authentication first - use hash routing consistently
       const authPopupUrl = chrome.runtime.getURL('popup.html') +
         `#/?auth=true&requestId=${requestId}&returnTo=connection`;
-
-      console.log('🚀 Opening auth popup with URL:', authPopupUrl);
 
       chrome.windows.create({
         url: authPopupUrl,
@@ -156,8 +142,6 @@ async function handleConnectionRequest(message, sender, sendResponse) {
       `favicon=${encodeURIComponent(siteFavicon || '')}&` +
       `tabId=${sender.tab.id}&` +
       `requestId=${requestId}#/connection-request`;
-
-    console.log('🔗 Opening connection approval popup:', popupUrl);
 
     chrome.windows.create({
       url: popupUrl,
@@ -206,6 +190,7 @@ async function handleDisconnectWallet(message, sender, sendResponse) {
     });
   }
 }
+
 
 // Handle transaction signing
 async function handleSignTransaction(message, sender, sendResponse) {
@@ -386,29 +371,16 @@ async function handleAuthCompleted(message, sender, sendResponse) {
   try {
     const { requestId } = message;
 
-    console.log('🎯 AUTH_COMPLETED received for requestId:', requestId);
-    console.log('📦 Pending requests:', Array.from(pendingConnectionRequests.keys()));
-
     if (!requestId || !pendingConnectionRequests.has(requestId)) {
-      console.log('❌ No pending connection request found for requestId:', requestId);
       sendResponse({ success: false, error: 'No pending connection request found' });
       return;
     }
 
     const request = pendingConnectionRequests.get(requestId);
     const { origin, tabId } = request;
-
-    console.log('✅ Authentication completed, proceeding with connection approval...');
-    console.log('🌐 Request details:', { origin, tabId });
-
     // Get updated storage after authentication
     const storage = await chrome.storage.sync.get(['isAuthenticated', 'walletAddress', 'connectedSites']);
-
-    console.log('💾 Current storage:', storage);
-
     if (!storage.isAuthenticated) {
-      // Still not authenticated
-      console.log('❌ Storage shows user still not authenticated');
       request.sendResponse({
         success: false,
         error: 'Authentication failed'
@@ -421,8 +393,6 @@ async function handleAuthCompleted(message, sender, sendResponse) {
     // Check if site is already connected
     const { connectedSites = [] } = storage;
     if (connectedSites.includes(origin)) {
-      // Auto-approve if already connected
-      console.log('✅ Site already connected, auto-approving');
       request.sendResponse({
         success: true,
         publicKey: storage.walletAddress
@@ -447,8 +417,6 @@ async function handleAuthCompleted(message, sender, sendResponse) {
         `tabId=${tabId}&` +
         `requestId=${requestId}#/connection-request`;
 
-      console.log('🔗 Opening connection approval popup after auth:', popupUrl);
-
       const newWindow = await chrome.windows.create({
         url: popupUrl,
         type: 'popup',
@@ -456,8 +424,6 @@ async function handleAuthCompleted(message, sender, sendResponse) {
         height: 600,
         focused: true
       });
-
-      console.log('🪟 Connection approval window created:', newWindow.id);
 
       sendResponse({ success: true });
 
@@ -480,7 +446,6 @@ async function handleAuthCompleted(message, sender, sendResponse) {
 
 // Handle storage changes
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  console.log('Storage changed:', changes, 'in', areaName);
 
   // Notify all open tabs about storage changes
   chrome.tabs.query({}, (tabs) => {

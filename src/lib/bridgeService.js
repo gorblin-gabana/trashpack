@@ -74,12 +74,6 @@ class BridgeService {
 
   async initiatebridge(userKeypair, amountSOL, destinationAddress) {
     try {
-      console.log('🌉 Starting Bridge Process...');
-      console.log('From: Solana');
-      console.log('To: Gorbagana');
-      console.log('Amount:', amountSOL, 'SOL');
-      console.log('Destination:', destinationAddress);
-
       // Check user balance
       const userBalance = await this.connection.getBalance(userKeypair.publicKey);
       const amountLamports = amountSOL * 1e9;
@@ -94,7 +88,6 @@ class BridgeService {
 
       // Get vault balance before
       const vaultBalanceBefore = await this.connection.getBalance(BRIDGE_VAULT_ADDRESS);
-      console.log('🔒 Locking funds in bridge vault...');
 
       // Execute lock transaction
       const tx = await program.methods
@@ -106,8 +99,6 @@ class BridgeService {
           system_program: address('11111111111111111111111111111111'),
         })
         .rpc();
-
-      console.log('📝 Lock transaction signature:', tx);
 
       // Wait for confirmation
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -121,14 +112,13 @@ class BridgeService {
       }
 
       // Simulate bridge processing (in real bridge, this would trigger cross-chain process)
-      console.log('🌉 Processing bridge to Gorbagana...');
 
       return {
         success: true,
         txSignature: tx,
         lockedAmount: lockedAmount / 1e9,
         vaultAddress: BRIDGE_VAULT_ADDRESS.toString(),
-        destinationChain: 'Gorbagana',
+        destinationChain: 'Gorbchain',
         destinationAddress: destinationAddress,
         estimatedArrival: '2-5 minutes',
         bridgeId: `SOL-GORB-${Date.now()}`
