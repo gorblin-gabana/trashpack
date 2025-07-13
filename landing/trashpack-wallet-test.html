@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗑️ TrashPack Wallet - Complete Test Suite</title>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        .info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 3px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        button:hover { background: #0056b3; transform: translateY(-1px); }
+        button:disabled { background: #6c757d; cursor: not-allowed; transform: none; }
+        button.primary { background: #28a745; }
+        button.primary:hover { background: #218838; }
+        pre {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 250px;
+            overflow-y: auto;
+            font-size: 12px;
+            border: 1px solid #dee2e6;
+        }
+        .wallet-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .wallet-btn {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+        .wallet-btn:hover {
+            border-color: #007bff;
+            background: #f8f9ff;
+        }
+        .wallet-btn.selected {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .wallet-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 3px;
+        }
+        .connection-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            display: none;
+        }
+        .stats-bar {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+        .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗑️ TrashPack Wallet - Complete Test Suite</h1>
+        <p>Comprehensive testing for wallet integration, DApp compatibility, and Solana standards compliance</p>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="stat-value" id="detectedWallets">-</div>
+            <div class="stat-label">Wallets Detected</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="testsRun">0</div>
+            <div class="stat-label">Tests Run</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="testsPassed">0</div>
+            <div class="stat-label">Tests Passed</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="overallScore">0%</div>
+            <div class="stat-label">Overall Score</div>
+        </div>
+    </div>
+
+    <div class="test-grid">
+        <!-- Basic Detection -->
+        <div class="test-section">
+            <h3>1. 🔍 Basic Extension Detection</h3>
+            <div id="basicStatus" class="status info">Ready to test...</div>
+            <button onclick="runBasicTests()" class="primary">Run Basic Tests</button>
+            <button onclick="openExtensionPopup()">Open Extension</button>
+            <pre id="basicInfo">Click "Run Basic Tests" to start</pre>
+        </div>
+
+        <!-- Wallet Discovery -->
+        <div class="test-section">
+            <h3>2. 🌐 Wallet Discovery</h3>
+            <div id="discoveryStatus" class="status info">Scanning...</div>
+            <button onclick="scanAllWallets()">Refresh Scan</button>
+            <div id="walletGrid" class="wallet-grid"></div>
+        </div>
+
+        <!-- Standards Compliance -->
+        <div class="test-section">
+            <h3>3. 📋 Standards Compliance</h3>
+            <div id="standardsStatus" class="status info">Checking...</div>
+            <button onclick="testStandardsCompliance()">Test Standards</button>
+            <div class="progress-bar">
+                <div class="progress-fill" id="complianceProgress" style="width: 0%"></div>
+            </div>
+            <pre id="standardsInfo">Standards compliance results will appear here</pre>
+        </div>
+
+        <!-- Connection Testing -->
+        <div class="test-section">
+            <h3>4. 🔗 Connection Testing</h3>
+            <div id="connectionStatus" class="status info">Select wallet to test</div>
+            <button onclick="testConnection()" id="connectBtn" disabled>Connect Selected</button>
+            <button onclick="testDisconnect()" id="disconnectBtn" disabled>Disconnect</button>
+            <div id="connectionInfo" class="connection-info">
+                <h4>Connection Details:</h4>
+                <pre id="connectionDetails"></pre>
+            </div>
+        </div>
+
+        <!-- Transaction Testing -->
+        <div class="test-section">
+            <h3>5. 📝 Transaction Testing</h3>
+            <div id="transactionStatus" class="status info">Connect wallet first</div>
+            <button onclick="testSignTransaction()" id="signTxBtn" disabled>Sign Transaction</button>
+            <button onclick="testSignMessage()" id="signMsgBtn" disabled>Sign Message</button>
+            <pre id="transactionInfo">Connect a wallet to test transaction signing</pre>
+        </div>
+
+        <!-- DApp Simulation -->
+        <div class="test-section">
+            <h3>6. 🚀 DApp Integration</h3>
+            <div id="dappStatus" class="status info">Connect wallet first</div>
+            <button onclick="simulateSwap()" id="swapBtn" disabled>Simulate DEX Swap</button>
+            <button onclick="simulateStake()" id="stakeBtn" disabled>Simulate Staking</button>
+            <pre id="dappResult">Connect a wallet to test DApp interactions</pre>
+        </div>
+
+        <!-- Multi-Wallet Testing -->
+        <div class="test-section">
+            <h3>7. 🔀 Multi-Wallet Support</h3>
+            <div id="multiStatus" class="status info">Testing...</div>
+            <button onclick="testMultiWallet()">Test Coexistence</button>
+            <pre id="multiResult">Tests wallet coexistence with other providers</pre>
+        </div>
+
+        <!-- Debug Console -->
+        <div class="test-section">
+            <h3>8. 🛠️ Debug Console</h3>
+            <button onclick="clearConsole()">Clear</button>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="exportResults()">Export Results</button>
+            <pre id="console">Debug output will appear here...\n</pre>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let selectedWallet = null;
+        let connectedWallet = null;
+        let walletPublicKey = null;
+        let availableWallets = [];
+        let testResults = {
+            testsRun: 0,
+            testsPassed: 0,
+            scores: []
+        };
+
+        // Known wallet providers to test
+        const KNOWN_WALLETS = [
+            {
+                name: 'TrashPack',
+                icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE2IDBDOS4zNzMgMCA0IDUuMzczIDQgMTJTOS4zNzMgMjQgMTYgMjRTMjggMTguNjI3IDI4IDEyUzIyLjYyNyAwIDE2IDBaIiBmaWxsPSIjOUE0M0ZGIi8+Cjwvc3ZnPgo=',
+                adapter: () => window.trashpack
+            },
+            {
+                name: 'Phantom',
+                icon: 'https://www.phantom.app/img/phantom-icon-purple.png',
+                adapter: () => window.phantom?.solana
+            },
+            {
+                name: 'Solflare',
+                icon: 'https://solflare.com/img/logo.svg',
+                adapter: () => window.solflare
+            },
+            {
+                name: 'Generic Solana',
+                icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE2IDBDNy4xNjMgMCAwIDcuMTYzIDAgMTZTNy4xNjMgMzIgMTYgMzJTMzIgMjQuODM3IDMyIDE2UzI0LjgzNyAwIDE2IDBaIiBmaWxsPSIjOTk0NUZGIi8+Cjwvc3ZnPgo=',
+                adapter: () => window.solana
+            }
+        ];
+
+        // Utility functions
+        function log(message) {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            console.textContent += `[${timestamp}] ${message}\n`;
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function updateStats() {
+            document.getElementById('detectedWallets').textContent = availableWallets.length;
+            document.getElementById('testsRun').textContent = testResults.testsRun;
+            document.getElementById('testsPassed').textContent = testResults.testsPassed;
+            
+            const percentage = testResults.testsRun > 0 ? 
+                Math.round((testResults.testsPassed / testResults.testsRun) * 100) : 0;
+            document.getElementById('overallScore').textContent = `${percentage}%`;
+        }
+
+        function passTest(name) {
+            testResults.testsRun++;
+            testResults.testsPassed++;
+            log(`✅ PASS: ${name}`);
+            updateStats();
+        }
+
+        function failTest(name, reason) {
+            testResults.testsRun++;
+            log(`❌ FAIL: ${name} - ${reason}`);
+            updateStats();
+        }
+
+        // Basic Extension Tests
+        function runBasicTests() {
+            log('🔍 Running basic extension tests...');
+            const statusEl = document.getElementById('basicStatus');
+            const infoEl = document.getElementById('basicInfo');
+            
+            let info = 'Basic Extension Test Results:\n\n';
+            let passed = 0;
+            let total = 0;
+
+            // Test 1: TrashPack detection
+            total++;
+            if (window.trashpack) {
+                info += '✅ window.trashpack detected\n';
+                info += `   - Name: ${window.trashpack.name}\n`;
+                info += `   - Version: ${window.trashpack.version}\n`;
+                info += `   - ReadyState: ${window.trashpack.readyState}\n`;
+                passTest('TrashPack detection');
+                passed++;
+            } else {
+                info += '❌ window.trashpack not found\n';
+                failTest('TrashPack detection', 'window.trashpack not available');
+            }
+
+            // Test 2: Solana compatibility
+            total++;
+            if (window.solana) {
+                info += '\n✅ window.solana available\n';
+                info += `   - Name: ${window.solana.name || 'Unknown'}\n`;
+                info += `   - isTrashPack: ${window.solana.isTrashPack || false}\n`;
+                passTest('Solana compatibility');
+                passed++;
+            } else {
+                info += '\n❌ window.solana not found\n';
+                failTest('Solana compatibility', 'window.solana not available');
+            }
+
+            // Test 3: Required methods
+            total++;
+            if (window.trashpack && 
+                typeof window.trashpack.connect === 'function' &&
+                typeof window.trashpack.signTransaction === 'function') {
+                info += '\n✅ Required methods present\n';
+                passTest('Required methods');
+                passed++;
+            } else {
+                info += '\n❌ Missing required methods\n';
+                failTest('Required methods', 'connect or signTransaction missing');
+            }
+
+            const percentage = Math.round((passed / total) * 100);
+            if (percentage >= 80) {
+                statusEl.textContent = `✅ Basic tests passed (${percentage}%)`;
+                statusEl.className = 'status success';
+            } else {
+                statusEl.textContent = `❌ Basic tests failed (${percentage}%)`;
+                statusEl.className = 'status error';
+            }
+
+            infoEl.textContent = info;
+            log(`🔍 Basic tests completed: ${passed}/${total} passed`);
+        }
+
+        // Wallet Discovery
+        function scanAllWallets() {
+            log('🌐 Scanning for available wallets...');
+            availableWallets = [];
+            const grid = document.getElementById('walletGrid');
+            const status = document.getElementById('discoveryStatus');
+            
+            grid.innerHTML = '';
+            
+            KNOWN_WALLETS.forEach((walletInfo, index) => {
+                const adapter = walletInfo.adapter();
+                const isAvailable = adapter && typeof adapter === 'object';
+                
+                if (isAvailable) {
+                    availableWallets.push({
+                        name: walletInfo.name,
+                        adapter: adapter,
+                        icon: walletInfo.icon
+                    });
+                    
+                    const walletBtn = document.createElement('div');
+                    walletBtn.className = 'wallet-btn';
+                    walletBtn.onclick = () => selectWallet(availableWallets.length - 1);
+                    walletBtn.innerHTML = `
+                        <img src="${walletInfo.icon}" alt="${walletInfo.name}" class="wallet-icon" onerror="this.style.display='none'">
+                        <div>
+                            <div><strong>${walletInfo.name}</strong></div>
+                            <div style="font-size: 11px; color: #666;">Available</div>
+                        </div>
+                    `;
+                    grid.appendChild(walletBtn);
+                    
+                    log(`✅ ${walletInfo.name} detected`);
+                } else {
+                    log(`❌ ${walletInfo.name} not found`);
+                }
+            });
+            
+            if (availableWallets.length > 0) {
+                status.textContent = `✅ Found ${availableWallets.length} wallet(s)`;
+                status.className = 'status success';
+            } else {
+                status.textContent = '❌ No wallets detected';
+                status.className = 'status error';
+            }
+            
+            updateStats();
+        }
+
+        function selectWallet(index) {
+            selectedWallet = availableWallets[index];
+            
+            // Update UI
+            document.querySelectorAll('.wallet-btn').forEach((btn, i) => {
+                btn.classList.toggle('selected', i === index);
+            });
+            
+            document.getElementById('connectBtn').disabled = false;
+            log(`📱 Selected ${selectedWallet.name}`);
+        }
+
+        // Standards Compliance Testing
+        function testStandardsCompliance() {
+            log('📋 Testing standards compliance...');
+            const statusEl = document.getElementById('standardsStatus');
+            const infoEl = document.getElementById('standardsInfo');
+            const progressEl = document.getElementById('complianceProgress');
+            
+            let compliance = 'Standards Compliance Test:\n\n';
+            let score = 0;
+            const tests = [
+                {
+                    name: 'Event System',
+                    check: () => typeof window.addEventListener === 'function',
+                    weight: 1
+                },
+                {
+                    name: 'Wallet Properties',
+                    check: () => window.trashpack && 
+                        window.trashpack.name && 
+                        window.trashpack.version &&
+                        window.trashpack.readyState,
+                    weight: 2
+                },
+                {
+                    name: 'Standard Methods',
+                    check: () => window.trashpack && 
+                        typeof window.trashpack.connect === 'function' &&
+                        typeof window.trashpack.signTransaction === 'function' &&
+                        typeof window.trashpack.signMessage === 'function',
+                    weight: 3
+                },
+                {
+                    name: 'Solana Compatibility',
+                    check: () => window.solana && window.solana.isTrashPack,
+                    weight: 2
+                },
+                {
+                    name: 'Event Registration',
+                    check: () => {
+                        // This is a simplified check - in reality we'd listen for events
+                        return window.trashpack && typeof window.trashpack.on === 'function';
+                    },
+                    weight: 2
+                }
+            ];
+            
+            tests.forEach(test => {
+                try {
+                    const passed = test.check();
+                    if (passed) {
+                        compliance += `✅ ${test.name}: PASS\n`;
+                        score += test.weight;
+                        passTest(`Standards: ${test.name}`);
+                    } else {
+                        compliance += `❌ ${test.name}: FAIL\n`;
+                        failTest(`Standards: ${test.name}`, 'Check failed');
+                    }
+                } catch (error) {
+                    compliance += `❌ ${test.name}: ERROR - ${error.message}\n`;
+                    failTest(`Standards: ${test.name}`, error.message);
+                }
+            });
+            
+            const maxScore = tests.reduce((sum, test) => sum + test.weight, 0);
+            const percentage = Math.round((score / maxScore) * 100);
+            
+            compliance += `\nCompliance Score: ${score}/${maxScore} (${percentage}%)\n`;
+            
+            progressEl.style.width = `${percentage}%`;
+            
+            if (percentage >= 80) {
+                statusEl.textContent = `✅ High compliance (${percentage}%)`;
+                statusEl.className = 'status success';
+            } else if (percentage >= 60) {
+                statusEl.textContent = `⚠️ Moderate compliance (${percentage}%)`;
+                statusEl.className = 'status warning';
+            } else {
+                statusEl.textContent = `❌ Low compliance (${percentage}%)`;
+                statusEl.className = 'status error';
+            }
+            
+            infoEl.textContent = compliance;
+            log(`📋 Standards compliance: ${percentage}%`);
+        }
+
+        // Connection Testing
+        async function testConnection() {
+            if (!selectedWallet) {
+                log('❌ No wallet selected');
+                return;
+            }
+
+            log(`🔗 Testing connection to ${selectedWallet.name}...`);
+            const statusEl = document.getElementById('connectionStatus');
+            const infoEl = document.getElementById('connectionInfo');
+            const detailsEl = document.getElementById('connectionDetails');
+            
+            try {
+                const response = await selectedWallet.adapter.connect();
+                
+                connectedWallet = selectedWallet.adapter;
+                walletPublicKey = response.publicKey || response;
+                
+                statusEl.textContent = `✅ Connected to ${selectedWallet.name}`;
+                statusEl.className = 'status success';
+                infoEl.style.display = 'block';
+                detailsEl.textContent = `Wallet: ${selectedWallet.name}\nPublic Key: ${walletPublicKey}\nTimestamp: ${new Date().toISOString()}\n\nMethods: ${Object.getOwnPropertyNames(selectedWallet.adapter).filter(prop => typeof selectedWallet.adapter[prop] === 'function').join(', ')}`;
+                
+                // Enable transaction buttons
+                document.getElementById('signTxBtn').disabled = false;
+                document.getElementById('signMsgBtn').disabled = false;
+                document.getElementById('swapBtn').disabled = false;
+                document.getElementById('stakeBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = false;
+                
+                document.getElementById('transactionStatus').textContent = '✅ Ready for transaction testing';
+                document.getElementById('transactionStatus').className = 'status success';
+                document.getElementById('dappStatus').textContent = '✅ Ready for DApp testing';
+                document.getElementById('dappStatus').className = 'status success';
+                
+                passTest(`Connection to ${selectedWallet.name}`);
+                log(`✅ Connected to ${selectedWallet.name}: ${walletPublicKey}`);
+            } catch (error) {
+                statusEl.textContent = `❌ Connection failed`;
+                statusEl.className = 'status error';
+                infoEl.style.display = 'block';
+                detailsEl.textContent = `Wallet: ${selectedWallet.name}\nError: ${error.message}\nTimestamp: ${new Date().toISOString()}`;
+                
+                failTest(`Connection to ${selectedWallet.name}`, error.message);
+                log(`❌ Connection failed: ${error.message}`);
+            }
+        }
+
+        async function testDisconnect() {
+            if (!connectedWallet) {
+                log('❌ No wallet connected');
+                return;
+            }
+
+            try {
+                if (typeof connectedWallet.disconnect === 'function') {
+                    await connectedWallet.disconnect();
+                }
+                
+                connectedWallet = null;
+                walletPublicKey = null;
+                
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+                document.getElementById('connectionStatus').className = 'status info';
+                document.getElementById('connectionInfo').style.display = 'none';
+                
+                // Disable buttons
+                document.getElementById('signTxBtn').disabled = true;
+                document.getElementById('signMsgBtn').disabled = true;
+                document.getElementById('swapBtn').disabled = true;
+                document.getElementById('stakeBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = true;
+                
+                passTest('Wallet disconnect');
+                log('✅ Wallet disconnected');
+            } catch (error) {
+                failTest('Wallet disconnect', error.message);
+                log(`❌ Disconnect failed: ${error.message}`);
+            }
+        }
+
+        // Transaction Testing
+        async function testSignTransaction() {
+            if (!connectedWallet) {
+                log('❌ No wallet connected');
+                return;
+            }
+
+            log('📝 Testing transaction signing...');
+            const infoEl = document.getElementById('transactionInfo');
+            
+            try {
+                const connection = new solanaWeb3.Connection('https://api.devnet.solana.com');
+                const transaction = new solanaWeb3.Transaction();
+                
+                transaction.add(
+                    solanaWeb3.SystemProgram.transfer({
+                        fromPubkey: new solanaWeb3.PublicKey(walletPublicKey),
+                        toPubkey: new solanaWeb3.PublicKey(walletPublicKey),
+                        lamports: 1000
+                    })
+                );
+                
+                transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+                transaction.feePayer = new solanaWeb3.PublicKey(walletPublicKey);
+                
+                const signedTransaction = await connectedWallet.signTransaction(transaction);
+                
+                infoEl.textContent = `✅ Transaction Signing Success\n\nSigned transaction size: ${signedTransaction.serialize().length} bytes\nTimestamp: ${new Date().toISOString()}`;
+                document.getElementById('transactionStatus').textContent = '✅ Transaction test passed';
+                document.getElementById('transactionStatus').className = 'status success';
+                
+                passTest('Transaction signing');
+                log('✅ Transaction signed successfully');
+            } catch (error) {
+                infoEl.textContent = `❌ Transaction Signing Failed\n\nError: ${error.message}\nTimestamp: ${new Date().toISOString()}`;
+                document.getElementById('transactionStatus').textContent = '❌ Transaction test failed';
+                document.getElementById('transactionStatus').className = 'status error';
+                
+                failTest('Transaction signing', error.message);
+                log(`❌ Transaction signing failed: ${error.message}`);
+            }
+        }
+
+        async function testSignMessage() {
+            if (!connectedWallet) {
+                log('❌ No wallet connected');
+                return;
+            }
+
+            log('📝 Testing message signing...');
+            const infoEl = document.getElementById('transactionInfo');
+            
+            try {
+                const message = `TrashPack test message - ${Date.now()}`;
+                const result = await connectedWallet.signMessage(new TextEncoder().encode(message));
+                
+                infoEl.textContent = `✅ Message Signing Success\n\nMessage: "${message}"\nSignature length: ${result.signature.length} bytes\nTimestamp: ${new Date().toISOString()}`;
+                document.getElementById('transactionStatus').textContent = '✅ Message test passed';
+                document.getElementById('transactionStatus').className = 'status success';
+                
+                passTest('Message signing');
+                log('✅ Message signed successfully');
+            } catch (error) {
+                infoEl.textContent = `❌ Message Signing Failed\n\nError: ${error.message}\nTimestamp: ${new Date().toISOString()}`;
+                document.getElementById('transactionStatus').textContent = '❌ Message test failed';
+                document.getElementById('transactionStatus').className = 'status error';
+                
+                failTest('Message signing', error.message);
+                log(`❌ Message signing failed: ${error.message}`);
+            }
+        }
+
+        // DApp Simulation
+        async function simulateSwap() {
+            if (!connectedWallet) {
+                log('❌ No wallet connected');
+                return;
+            }
+
+            log('🔄 Simulating DEX swap...');
+            const resultEl = document.getElementById('dappResult');
+            
+            try {
+                const connection = new solanaWeb3.Connection('https://api.devnet.solana.com');
+                const transaction = new solanaWeb3.Transaction();
+                
+                transaction.add(
+                    new solanaWeb3.TransactionInstruction({
+                        keys: [],
+                        programId: new solanaWeb3.PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
+                        data: Buffer.from('TrashPack DEX Swap Test', 'utf8')
+                    })
+                );
+                
+                transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+                transaction.feePayer = new solanaWeb3.PublicKey(walletPublicKey);
+                
+                const signedTx = await connectedWallet.signTransaction(transaction);
+                
+                resultEl.textContent = `✅ DEX Swap Simulation Successful!\n\nTransaction signed and ready for submission\nSize: ${signedTx.serialize().length} bytes\nTimestamp: ${new Date().toISOString()}`;
+                
+                passTest('DEX swap simulation');
+                log('✅ DEX swap simulation successful');
+            } catch (error) {
+                resultEl.textContent = `❌ DEX Swap Simulation Failed!\n\nError: ${error.message}\nTimestamp: ${new Date().toISOString()}`;
+                
+                failTest('DEX swap simulation', error.message);
+                log(`❌ DEX swap simulation failed: ${error.message}`);
+            }
+        }
+
+        async function simulateStake() {
+            if (!connectedWallet) {
+                log('❌ No wallet connected');
+                return;
+            }
+
+            log('🥩 Simulating staking...');
+            const resultEl = document.getElementById('dappResult');
+            
+            try {
+                const message = `Stake 10 SOL to validator\nTimestamp: ${Date.now()}\nWallet: TrashPack`;
+                const signature = await connectedWallet.signMessage(new TextEncoder().encode(message));
+                
+                resultEl.textContent = `✅ Staking Simulation Successful!\n\nStaking message signed\nMessage: "${message}"\nSignature: ${signature.signature.length} bytes\nTimestamp: ${new Date().toISOString()}`;
+                
+                passTest('Staking simulation');
+                log('✅ Staking simulation successful');
+            } catch (error) {
+                resultEl.textContent = `❌ Staking Simulation Failed!\n\nError: ${error.message}\nTimestamp: ${new Date().toISOString()}`;
+                
+                failTest('Staking simulation', error.message);
+                log(`❌ Staking simulation failed: ${error.message}`);
+            }
+        }
+
+        // Multi-Wallet Testing
+        function testMultiWallet() {
+            log('🔀 Testing multi-wallet coexistence...');
+            const statusEl = document.getElementById('multiStatus');
+            const resultEl = document.getElementById('multiResult');
+            
+            let report = 'Multi-Wallet Coexistence Test:\n\n';
+            const providers = [];
+            
+            if (window.trashpack) providers.push('TrashPack (window.trashpack)');
+            if (window.solana && window.solana !== window.trashpack) providers.push('Generic Solana (window.solana)');
+            if (window.phantom) providers.push('Phantom (window.phantom)');
+            if (window.solflare) providers.push('Solflare (window.solflare)');
+            
+            report += `Detected Providers: ${providers.length}\n`;
+            providers.forEach(provider => report += `- ${provider}\n`);
+            
+            report += '\nConflict Analysis:\n';
+            if (window.solana && window.trashpack) {
+                if (window.solana === window.trashpack) {
+                    report += '✅ TrashPack properly claims window.solana\n';
+                    passTest('Solana namespace claim');
+                } else {
+                    report += '⚠️ window.solana conflict detected\n';
+                    failTest('Solana namespace claim', 'Conflict with other provider');
+                }
+            }
+            
+            if (providers.length >= 1) {
+                statusEl.textContent = `✅ Multi-wallet test completed (${providers.length} providers)`;
+                statusEl.className = 'status success';
+            } else {
+                statusEl.textContent = '❌ No wallet providers found';
+                statusEl.className = 'status error';
+            }
+            
+            resultEl.textContent = report;
+            log(`🔀 Multi-wallet test: ${providers.length} providers detected`);
+        }
+
+        // Utility functions
+        function clearConsole() {
+            document.getElementById('console').textContent = 'Console cleared...\n';
+        }
+
+        function openExtensionPopup() {
+            alert('To open the TrashPack extension popup:\n\n1. Look for the TrashPack icon in your Chrome toolbar\n2. If not visible, click the puzzle piece (🧩) icon\n3. Find "TrashPack - Wallet Extension" and click it\n4. Pin it to your toolbar for easy access');
+        }
+
+        async function runAllTests() {
+            log('🚀 Running complete test suite...');
+            
+            // Reset test results
+            testResults = { testsRun: 0, testsPassed: 0, scores: [] };
+            
+            // Run tests in sequence
+            runBasicTests();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            scanAllWallets();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            testStandardsCompliance();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            testMultiWallet();
+            
+            log('🎉 Complete test suite finished!');
+        }
+
+        function exportResults() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                testResults: testResults,
+                availableWallets: availableWallets.map(w => ({
+                    name: w.name,
+                    methods: Object.getOwnPropertyNames(w.adapter).filter(prop => typeof w.adapter[prop] === 'function')
+                })),
+                browserInfo: {
+                    userAgent: navigator.userAgent,
+                    timestamp: new Date().toISOString()
+                },
+                consoleLog: document.getElementById('console').textContent
+            };
+            
+            const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `trashpack-test-results-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            log('📄 Test results exported');
+        }
+
+        // Auto-run on page load
+        window.addEventListener('load', () => {
+            log('🚀 TrashPack Wallet Test Suite initialized');
+            setTimeout(() => {
+                scanAllWallets();
+                testMultiWallet();
+            }, 1000);
+        });
+
+        // Listen for wallet events
+        window.addEventListener('trashpack#initialized', (event) => {
+            log('🎉 TrashPack initialization detected');
+            setTimeout(() => {
+                scanAllWallets();
+                runBasicTests();
+            }, 500);
+        });
+
+        window.addEventListener('wallet-standard:register-wallet', (event) => {
+            log('📋 Wallet standard registration detected');
+        });
+    </script>
+</body>
+</html> 
