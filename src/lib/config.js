@@ -1,3 +1,7 @@
+// NOTE: For production deployment, API keys should be moved to environment variables
+// or allow users to provide their own RPC endpoints via settings.
+// The Helius API key below is for development only.
+
 export const networks = [
     {
         id: 'gorbchain-mainnet',

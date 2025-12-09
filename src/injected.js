@@ -195,7 +195,7 @@
         };
 
         console.log('🔗 TrashPack: Posting message to content script:', message);
-        window.postMessage(message, '*');
+        window.postMessage(message, window.location.origin);
 
         const handleResponse = (event) => {
           console.log('🔗 TrashPack: Received response event:', event.data);

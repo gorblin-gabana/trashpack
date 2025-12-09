@@ -29,7 +29,7 @@ function handleStorageChange(changes) {
       // User logged out, disconnect wallet
       window.postMessage({
         type: 'TRASHPACK_DISCONNECTED'
-      }, '*');
+      }, window.location.origin);
     }
   }
 
@@ -40,7 +40,7 @@ function handleStorageChange(changes) {
       data: {
         publicKey: changes.walletAddress.newValue
       }
-    }, '*');
+    }, window.location.origin);
   }
 }
 
@@ -114,7 +114,7 @@ function handleTrashPackConnect(data, messageId) {
         messageId,
         success: false,
         error: 'Extension communication error: ' + chrome.runtime.lastError.message
-      }, '*');
+      }, window.location.origin);
       return;
     }
 
@@ -133,7 +133,7 @@ function handleTrashPackConnect(data, messageId) {
             messageId,
             success: true,
             publicKey: response.walletAddress
-          }, '*');
+          }, window.location.origin);
         } else {
           chrome.runtime.sendMessage({
             type: 'REQUEST_CONNECTION',
@@ -146,7 +146,7 @@ function handleTrashPackConnect(data, messageId) {
                 messageId,
                 success: false,
                 error: 'Extension communication error: ' + chrome.runtime.lastError.message
-              }, '*');
+              }, window.location.origin);
               return;
             }
 
@@ -156,14 +156,14 @@ function handleTrashPackConnect(data, messageId) {
                 messageId,
                 success: true,
                 publicKey: connectionResponse.publicKey
-              }, '*');
+              }, window.location.origin);
             } else {
               window.postMessage({
                 type: 'TRASHPACK_CONNECT_RESPONSE',
                 messageId,
                 success: false,
                 error: connectionResponse?.error || 'Connection rejected'
-              }, '*');
+              }, window.location.origin);
             }
           });
         }
@@ -182,7 +182,7 @@ function handleTrashPackConnect(data, messageId) {
             messageId,
             success: false,
             error: 'Extension communication error: ' + chrome.runtime.lastError.message
-          }, '*');
+          }, window.location.origin);
           return;
         }
 
@@ -192,14 +192,14 @@ function handleTrashPackConnect(data, messageId) {
             messageId,
             success: true,
             publicKey: connectionResponse.publicKey
-          }, '*');
+          }, window.location.origin);
         } else {
           window.postMessage({
             type: 'TRASHPACK_CONNECT_RESPONSE',
             messageId,
             success: false,
             error: connectionResponse?.error || 'Connection rejected'
-          }, '*');
+          }, window.location.origin);
         }
       });
     }
@@ -215,7 +215,7 @@ function handleTrashPackDisconnect(messageId) {
       type: 'TRASHPACK_DISCONNECT_RESPONSE',
       messageId,
       success: true
-    }, '*');
+    }, window.location.origin);
   });
 }
 
@@ -231,7 +231,7 @@ function handleTrashPackSignTransaction(data, messageId) {
       success: response.success,
       signedTransaction: response.signedTransaction,
       error: response.error
-    }, '*');
+    }, window.location.origin);
   });
 }
 
@@ -247,7 +247,7 @@ function handleTrashPackSignAllTransactions(data, messageId) {
       success: response.success,
       signedTransactions: response.signedTransactions,
       error: response.error
-    }, '*');
+    }, window.location.origin);
   });
 }
 
@@ -263,7 +263,7 @@ function handleTrashPackSignMessage(data, messageId) {
       success: response.success,
       signature: response.signature,
       error: response.error
-    }, '*');
+    }, window.location.origin);
   });
 }
 
@@ -280,7 +280,7 @@ function handleTrashPackSignAndSendTransaction(data, messageId) {
       success: response.success,
       signature: response.signature,
       error: response.error
-    }, '*');
+    }, window.location.origin);
   });
 }
 

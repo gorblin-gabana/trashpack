@@ -1,5 +1,16 @@
 // Background service worker for TrashPack Wallet Extension
 
+// Security: Validate origin format before processing connection requests
+function isValidOrigin(origin) {
+  if (!origin || typeof origin !== 'string') return false;
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 // Handle extension installation
 chrome.runtime.onInstalled.addListener((details) => {
   // Set up default storage values
@@ -321,6 +332,13 @@ async function handleConnectionApproved(message, sender, sendResponse) {
     }
 
     const request = pendingConnectionRequests.get(requestId);
+
+    // Security: Verify that the origin in the approval matches the stored request origin
+    if (origin && request.origin && origin !== request.origin) {
+      console.error('Origin mismatch in connection approval:', { messageOrigin: origin, requestOrigin: request.origin });
+      sendResponse({ success: false, error: 'Origin mismatch - connection rejected for security' });
+      return;
+    }
 
     // Send success response to the original dApp request
     request.sendResponse({
