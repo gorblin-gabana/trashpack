@@ -543,6 +543,397 @@ body {
   font-size: 0.9rem;
 }
 
+/* Bonus Tokens Section */
+.bonus-section {
+  padding: 6rem 2rem;
+  background: linear-gradient(180deg, rgba(255, 214, 0, 0.02) 0%, rgba(0, 223, 216, 0.05) 50%, transparent 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.bonus-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 214, 0, 0.3), transparent);
+}
+
+.bonus-container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.bonus-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.bonus-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #FFD600 0%, #FFA500 100%);
+  color: #0F0F23;
+  padding: 0.5rem 1.25rem;
+  border-radius: 25px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 20px rgba(255, 214, 0, 0.3);
+  animation: pulse-gold 2s ease-in-out infinite;
+}
+
+@keyframes pulse-gold {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(255, 214, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 30px rgba(255, 214, 0, 0.5);
+  }
+}
+
+.bonus-subtitle {
+  font-size: 1.1rem;
+  color: #9CA3AF;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.bonus-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 3rem;
+}
+
+.bonus-step {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  width: 260px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.bonus-step:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(0, 223, 216, 0.3);
+}
+
+.bonus-step.highlight-step {
+  border-color: rgba(255, 214, 0, 0.3);
+  background: rgba(255, 214, 0, 0.03);
+}
+
+.bonus-step.highlight-step:hover {
+  border-color: rgba(255, 214, 0, 0.5);
+  background: rgba(255, 214, 0, 0.08);
+}
+
+.step-number {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #00DFD8 0%, #00B8B8 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #0F0F23;
+}
+
+.highlight-step .step-number {
+  background: linear-gradient(135deg, #FFD600 0%, #FFA500 100%);
+}
+
+.step-content {
+  padding-top: 0.5rem;
+}
+
+.step-icon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 1rem;
+  background: rgba(0, 223, 216, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00DFD8;
+}
+
+.step-icon.token-icon {
+  background: rgba(255, 214, 0, 0.1);
+}
+
+.step-icon.token-icon img {
+  border-radius: 50%;
+}
+
+.step-content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #ffffff;
+}
+
+.step-content p {
+  font-size: 0.9rem;
+  color: #9CA3AF;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.step-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.telegram-btn {
+  background: rgba(0, 136, 204, 0.15);
+  color: #0088cc;
+  border: 1px solid rgba(0, 136, 204, 0.3);
+}
+
+.telegram-btn:hover {
+  background: rgba(0, 136, 204, 0.25);
+  border-color: #0088cc;
+  transform: translateY(-2px);
+}
+
+.x-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.x-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+.token-reward {
+  background: linear-gradient(135deg, rgba(255, 214, 0, 0.15), rgba(255, 165, 0, 0.1));
+  border: 1px solid rgba(255, 214, 0, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.reward-amount {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #FFD600;
+  margin-bottom: 0.25rem;
+}
+
+.reward-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #9CA3AF;
+}
+
+.bonus-arrow {
+  color: rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.bonus-cta {
+  text-align: center;
+}
+
+.cta-text {
+  font-size: 1.1rem;
+  color: #9CA3AF;
+  margin-bottom: 1.5rem;
+}
+
+.bonus-main-btn {
+  display: inline-flex;
+  font-size: 1.1rem;
+  padding: 1rem 2.5rem;
+}
+
+/* Tutorial Section */
+.tutorial-section {
+  padding: 6rem 2rem;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 223, 216, 0.03) 50%, transparent 100%);
+}
+
+.tutorial-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.tutorial-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.tutorial-badge {
+  display: inline-block;
+  background: rgba(0, 223, 216, 0.15);
+  color: #00DFD8;
+  padding: 0.5rem 1.25rem;
+  border-radius: 25px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(0, 223, 216, 0.3);
+}
+
+.tutorial-subtitle {
+  font-size: 1.1rem;
+  color: #9CA3AF;
+  max-width: 550px;
+  margin: 0 auto;
+}
+
+.tutorial-steps {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.tutorial-step {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  flex: 1;
+  max-width: 280px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.tutorial-step:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(0, 223, 216, 0.3);
+}
+
+.tutorial-step.highlight {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.03);
+}
+
+.tutorial-step.highlight:hover {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.tutorial-step-number {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #00DFD8 0%, #00B8B8 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #0F0F23;
+}
+
+.tutorial-step.highlight .tutorial-step-number {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.tutorial-step-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0.5rem auto 1.5rem;
+  background: rgba(0, 223, 216, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00DFD8;
+}
+
+.tutorial-step-icon.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.tutorial-step h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #ffffff;
+}
+
+.tutorial-step p {
+  font-size: 0.9rem;
+  color: #9CA3AF;
+  line-height: 1.6;
+}
+
+.tutorial-arrow {
+  color: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tutorial-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: rgba(255, 214, 0, 0.05);
+  border: 1px solid rgba(255, 214, 0, 0.2);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.tip-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.tutorial-tip p {
+  color: #E5E7EB;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.tutorial-tip strong {
+  color: #FFD600;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .hero-content {
@@ -582,6 +973,38 @@ body {
   
   .footer-links {
     justify-content: center;
+  }
+
+  .bonus-steps {
+    flex-direction: column;
+  }
+
+  .bonus-step {
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .bonus-arrow {
+    transform: rotate(90deg);
+  }
+
+  .tutorial-steps {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .tutorial-step {
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .tutorial-arrow {
+    transform: rotate(90deg);
+  }
+
+  .tutorial-tip {
+    flex-direction: column;
+    text-align: center;
   }
 }
 
