@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TrashPack - Wallet Extension",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "TrashPack - A Secure Solana wallet Chrome extension for managing cryptocurrency",
   "icons": {
     "16": "icons/icon16.png",

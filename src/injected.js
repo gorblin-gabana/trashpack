@@ -40,7 +40,7 @@
       this.isTrashPack = true;
       this.name = 'TrashPack';
       this.icon = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE2IDBDOS4zNzMgMCA0IDUuMzczIDQgMTJTOS4zNzMgMjQgMTYgMjRTMjggMTguNjI3IDI4IDEyUzIyLjYyNyAwIDE2IDBaIiBmaWxsPSIjOUE0M0ZGIi8+Cjwvc3ZnPgo=';
-      this.version = '1.0.0';
+      this.version = '2.0.0';
       this.connected = false;
       this.connecting = false;
       this.publicKey = null;

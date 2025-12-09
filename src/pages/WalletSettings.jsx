@@ -196,11 +196,11 @@ function WalletSettings({ requireUnlock }) {
           <p className="text-sm text-zinc-400 mb-4">
             Your unique wallet address. You can use this to receive funds.
           </p>
-          <div className="bg-zinc-800 p-3 rounded flex items-center gap-2">
-            <span className="text-sm text-zinc-400">{walletAddress}</span>
+          <div className="bg-zinc-800 p-3 rounded flex items-center gap-2 overflow-hidden">
+            <span className="text-sm text-zinc-400 flex-1 truncate min-w-0">{walletAddress}</span>
             <button
               onClick={handleCopyAddress}
-              className="text-zinc-400 hover:text-white"
+              className="text-zinc-400 hover:text-white flex-shrink-0"
             >
               <Copy size={16} />
             </button>
