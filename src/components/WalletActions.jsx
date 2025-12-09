@@ -1,21 +1,13 @@
-import { Send, QrCode, ArrowRightLeft, Coins, Sparkles } from 'lucide-react';
+import { Send, QrCode, ArrowRightLeft, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import toast from 'react-hot-toast';
 
 function WalletActions({ onReceiveClick }) {
     const navigate = useNavigate();
     const [hoveredAction, setHoveredAction] = useState(null);
 
-    const handleStake = () => {
-        toast('Staking coming soon! 🚀', {
-            icon: <Sparkles size={20} className="text-yellow-400" />,
-            style: {
-                background: '#18181b',
-                color: '#fafafa',
-                border: '1px solid #27272a'
-            }
-        });
+    const handleEarn = () => {
+        navigate('/earn');
     };
 
     const handleReceive = () => {
@@ -63,13 +55,13 @@ function WalletActions({ onReceiveClick }) {
             hoverColor: 'from-cyan-400 to-blue-500',
         },
         {
-            id: 'stake',
-            label: 'Stake',
-            description: 'Stake tokens',
-            icon: Coins,
-            onClick: handleStake,
-            color: 'from-purple-500 to-purple-600',
-            hoverColor: 'from-purple-400 to-purple-500',
+            id: 'earn',
+            label: 'Earn',
+            description: 'Earn rewards',
+            icon: DollarSign,
+            onClick: handleEarn,
+            color: 'from-yellow-500 to-amber-600',
+            hoverColor: 'from-yellow-400 to-amber-500',
         },
     ];
 
