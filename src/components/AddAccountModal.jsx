@@ -145,8 +145,8 @@ function AddAccountModal({ isOpen, onClose }) {
   // Password Prompt View
   if (showPasswordPrompt) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-80 max-w-md shadow-2xl">
+      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 overflow-y-auto">
+        <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-[360px] shadow-2xl">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-zinc-700">
             <div className="flex items-center gap-3">
@@ -219,8 +219,8 @@ function AddAccountModal({ isOpen, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-xl max-w-sm w-full max-h-[85vh] overflow-y-auto shadow-2xl">
+    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 overflow-y-auto">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-xl max-w-[360px] w-full max-h-[90%] overflow-y-auto shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-zinc-700">
           <h3 className="text-white font-medium text-lg">Add Account</h3>

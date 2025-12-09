@@ -35,11 +35,11 @@ function ReceiveModal({ isOpen, onClose }) {
   };
 
   return (
-    <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    <div
+      className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 overflow-y-auto"
       onClick={handleBackdropClick}
     >
-      <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 rounded-2xl w-full max-w-sm max-h-[80vh] overflow-hidden shadow-xl animate-in fade-in zoom-in duration-200">
+      <div className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 rounded-2xl w-full max-w-[360px] max-h-[90%] overflow-hidden shadow-xl animate-in fade-in zoom-in duration-200">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-zinc-700/50">
           <div className="flex items-center gap-2">

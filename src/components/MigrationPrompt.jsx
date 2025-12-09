@@ -59,58 +59,58 @@ function MigrationPrompt({ onMigrationComplete, onSkip }) {
 
   if (step === 1) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        <div className="bg-zinc-800 rounded-lg p-6 w-full max-w-md mx-4 border border-zinc-700">
-          <div className="text-center mb-6">
-            <Shield className="mx-auto mb-3 text-yellow-400" size={48} />
-            <h2 className="text-xl font-semibold text-white mb-2">Security Upgrade Available</h2>
+      <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-y-auto">
+        <div className="bg-zinc-800 rounded-lg p-4 w-full max-w-[360px] mx-3 my-3 border border-zinc-700">
+          <div className="text-center mb-4">
+            <Shield className="mx-auto mb-2 text-yellow-400" size={36} />
+            <h2 className="text-lg font-semibold text-white mb-1">Security Upgrade Available</h2>
           </div>
 
-          <div className="space-y-4 mb-6">
-            <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="text-yellow-400 mt-0.5" size={20} />
+          <div className="space-y-3 mb-4">
+            <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="text-yellow-400 mt-0.5 flex-shrink-0" size={16} />
                 <div>
-                  <h3 className="text-yellow-400 font-medium mb-1">Important Security Notice</h3>
-                  <p className="text-zinc-300 text-sm">
+                  <h3 className="text-yellow-400 font-medium text-sm mb-1">Important Security Notice</h3>
+                  <p className="text-zinc-300 text-xs">
                     We've detected wallet data stored in less secure storage. We recommend migrating to our new secure storage system.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h4 className="text-white font-medium">Benefits of upgrading:</h4>
-              <ul className="space-y-2 text-sm text-zinc-300">
+            <div className="space-y-2">
+              <h4 className="text-white font-medium text-sm">Benefits of upgrading:</h4>
+              <ul className="space-y-1.5 text-xs text-zinc-300">
                 <li className="flex items-center gap-2">
-                  <Shield size={16} className="text-green-400" />
+                  <Shield size={12} className="text-green-400 flex-shrink-0" />
                   Enhanced encryption using Web Crypto API
                 </li>
                 <li className="flex items-center gap-2">
-                  <Shield size={16} className="text-green-400" />
+                  <Shield size={12} className="text-green-400 flex-shrink-0" />
                   Isolated Chrome extension storage
                 </li>
                 <li className="flex items-center gap-2">
-                  <Shield size={16} className="text-green-400" />
+                  <Shield size={12} className="text-green-400 flex-shrink-0" />
                   Password-protected wallet access
                 </li>
               </ul>
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <button
               onClick={handleSkipMigration}
-              className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2 px-4 rounded-lg transition-colors"
+              className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2 px-3 rounded-lg transition-colors text-sm"
             >
               Skip for Now
             </button>
             <button
               onClick={handleStartMigration}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1 text-sm"
             >
               Upgrade Now
-              <ArrowRight size={16} />
+              <ArrowRight size={14} />
             </button>
           </div>
         </div>
@@ -120,19 +120,19 @@ function MigrationPrompt({ onMigrationComplete, onSkip }) {
 
   if (step === 2) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        <div className="bg-zinc-800 rounded-lg p-6 w-full max-w-md mx-4 border border-zinc-700">
-          <div className="text-center mb-6">
-            <Shield className="mx-auto mb-3 text-blue-400" size={40} />
-            <h2 className="text-xl font-semibold text-white mb-2">Set Security Password</h2>
-            <p className="text-zinc-400 text-sm">
+      <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-y-auto">
+        <div className="bg-zinc-800 rounded-lg p-4 w-full max-w-[360px] mx-3 my-3 border border-zinc-700">
+          <div className="text-center mb-4">
+            <Shield className="mx-auto mb-2 text-blue-400" size={32} />
+            <h2 className="text-lg font-semibold text-white mb-1">Set Security Password</h2>
+            <p className="text-zinc-400 text-xs">
               Choose a strong password to encrypt your wallet data
             </p>
           </div>
 
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          <form onSubmit={handlePasswordSubmit} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">
+              <label className="block text-xs font-medium text-zinc-400 mb-1">
                 New Password
               </label>
               <div className="relative">
@@ -140,7 +140,7 @@ function MigrationPrompt({ onMigrationComplete, onSkip }) {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                  className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
                   placeholder="Enter a strong password"
                   minLength={8}
                   required
@@ -156,14 +156,14 @@ function MigrationPrompt({ onMigrationComplete, onSkip }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">
+              <label className="block text-xs font-medium text-zinc-400 mb-1">
                 Confirm Password
               </label>
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Confirm your password"
                 minLength={8}
                 required
@@ -171,30 +171,30 @@ function MigrationPrompt({ onMigrationComplete, onSkip }) {
             </div>
 
             {error && (
-              <div className="text-red-400 text-sm bg-red-400/10 p-3 rounded-lg">
+              <div className="text-red-400 text-xs bg-red-400/10 p-2 rounded-lg">
                 {error}
               </div>
             )}
 
-            <div className="bg-blue-400/10 border border-blue-400/20 rounded-lg p-3">
+            <div className="bg-blue-400/10 border border-blue-400/20 rounded-lg p-2">
               <p className="text-blue-400 text-xs">
                 <strong>Important:</strong> This password encrypts your wallet data locally.
                 Make sure to remember it as it cannot be recovered.
               </p>
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2 px-4 rounded-lg transition-colors"
+                className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2 px-3 rounded-lg transition-colors text-sm"
               >
                 Back
               </button>
               <button
                 type="submit"
                 disabled={!password || !confirmPassword || password !== confirmPassword}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2 px-4 rounded-lg transition-colors"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2 px-3 rounded-lg transition-colors text-sm"
               >
                 Migrate Wallet
               </button>
@@ -207,17 +207,17 @@ function MigrationPrompt({ onMigrationComplete, onSkip }) {
 
   if (step === 3) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        <div className="bg-zinc-800 rounded-lg p-6 w-full max-w-md mx-4 border border-zinc-700">
+      <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div className="bg-zinc-800 rounded-lg p-4 w-full max-w-[360px] mx-3 border border-zinc-700">
           <div className="text-center">
-            <div className="animate-spin mx-auto mb-4">
-              <Shield className="text-blue-400" size={40} />
+            <div className="animate-spin mx-auto mb-3">
+              <Shield className="text-blue-400" size={32} />
             </div>
-            <h2 className="text-xl font-semibold text-white mb-2">Migrating Wallet Data</h2>
-            <p className="text-zinc-400 text-sm mb-4">
+            <h2 className="text-lg font-semibold text-white mb-1">Migrating Wallet Data</h2>
+            <p className="text-zinc-400 text-xs mb-3">
               Please wait while we securely migrate your wallet data...
             </p>
-            <div className="bg-zinc-700 rounded-full h-2 overflow-hidden">
+            <div className="bg-zinc-700 rounded-full h-1.5 overflow-hidden">
               <div className="bg-blue-400 h-full animate-pulse"></div>
             </div>
           </div>

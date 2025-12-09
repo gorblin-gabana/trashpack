@@ -404,21 +404,21 @@ function CrossChainSwapPage({ requireUnlock }) {
             );
 
         return (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-gray-900/90 backdrop-blur-xl border border-gray-700/50 rounded-3xl w-full max-w-sm max-h-[70vh] overflow-hidden shadow-2xl">
-                    <div className="flex items-center justify-between p-5 border-b border-gray-700/30">
-                        <h3 className="text-white font-bold text-lg">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 overflow-y-auto">
+                <div className="bg-gray-900/90 backdrop-blur-xl border border-gray-700/50 rounded-2xl w-full max-w-[360px] max-h-[85%] overflow-hidden shadow-2xl">
+                    <div className="flex items-center justify-between p-4 border-b border-gray-700/30">
+                        <h3 className="text-white font-bold text-base">
                             Select {type === 'from' ? 'Source' : 'Destination'} Token
                         </h3>
                         <button
                             onClick={onClose}
-                            className="p-2 rounded-xl hover:bg-gray-700/50 text-gray-400 hover:text-white transition-all duration-200"
+                            className="p-1.5 rounded-lg hover:bg-gray-700/50 text-gray-400 hover:text-white transition-all duration-200"
                         >
-                            <X size={18} />
+                            <X size={16} />
                         </button>
                     </div>
 
-                    <div className="overflow-y-auto max-h-80 p-3">
+                    <div className="overflow-y-auto max-h-72 p-2">
                         {tokens.map((token) => (
                             <button
                                 key={`${token.chainId}-${token.symbol}`}
@@ -451,21 +451,21 @@ function CrossChainSwapPage({ requireUnlock }) {
             availableChains;
 
         return (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-gray-900/90 backdrop-blur-xl border border-gray-700/50 rounded-3xl w-full max-w-sm max-h-[70vh] overflow-hidden shadow-2xl">
-                    <div className="flex items-center justify-between p-5 border-b border-gray-700/30">
-                        <h3 className="text-white font-bold text-lg">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 overflow-y-auto">
+                <div className="bg-gray-900/90 backdrop-blur-xl border border-gray-700/50 rounded-2xl w-full max-w-[360px] max-h-[85%] overflow-hidden shadow-2xl">
+                    <div className="flex items-center justify-between p-4 border-b border-gray-700/30">
+                        <h3 className="text-white font-bold text-base">
                             Select {type === 'from' ? 'Source' : 'Destination'} Chain
                         </h3>
                         <button
                             onClick={onClose}
-                            className="p-2 rounded-xl hover:bg-gray-700/50 text-gray-400 hover:text-white transition-all duration-200"
+                            className="p-1.5 rounded-lg hover:bg-gray-700/50 text-gray-400 hover:text-white transition-all duration-200"
                         >
-                            <X size={18} />
+                            <X size={16} />
                         </button>
                     </div>
 
-                    <div className="overflow-y-auto max-h-80 p-3">
+                    <div className="overflow-y-auto max-h-72 p-2">
                         {chains.map((chain) => (
                             <button
                                 key={chain.chainId}

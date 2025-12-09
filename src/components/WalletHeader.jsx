@@ -303,8 +303,8 @@ function WalletHeader({ onLogout }) {
 
       {/* Edit Account Name Modal */}
       {editingAccount !== null && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-zinc-800 rounded-lg p-4 w-80 mx-4 border border-zinc-600">
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 p-3">
+          <div className="bg-zinc-800 rounded-lg p-4 w-full max-w-[360px] border border-zinc-600">
             <h3 className="text-white text-lg mb-3">Edit Account Name</h3>
             <input
               type="text"
@@ -345,8 +345,8 @@ function WalletHeader({ onLogout }) {
 
       {/* Password Prompt Modal */}
       {showPasswordPrompt && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 w-80 max-w-md mx-4 shadow-2xl">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4 w-full max-w-[360px] shadow-2xl">
             {/* Header with close button */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">

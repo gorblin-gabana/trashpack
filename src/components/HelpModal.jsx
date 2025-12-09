@@ -7,8 +7,8 @@ function HelpModal() {
   if (!isHelpModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setHelpModalOpen(false)}>
-      <div className="bg-neutral-800 text-white border border-zinc-600 max-w-sm rounded-md p-4" onClick={(e) => e.stopPropagation()}>
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/30 overflow-y-auto" onClick={() => setHelpModalOpen(false)}>
+      <div className="bg-neutral-800 text-white border border-zinc-600 max-w-[360px] mx-3 my-3 rounded-md p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-3">
                       <h2 className="text-lg font-bold">About TrashPack</h2>
           <button

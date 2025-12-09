@@ -32,8 +32,8 @@ const ConnectionApproval = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-[360px] overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-4">
           <h2 className="text-white text-xl font-bold flex items-center">
