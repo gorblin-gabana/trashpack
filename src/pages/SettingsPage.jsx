@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import {
   HelpCircle, ExternalLink, MessageSquare, CopyIcon, Save, Trash2, Edit3, Wallet,
-  Clock, DollarSign, Globe, Bell, BellOff, Shield, ChevronRight, X, Link2Off
+  Clock, DollarSign, Globe, Bell, BellOff, Shield, ChevronRight, X, Link2Off, AtSign
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useUIStore, useWalletStore, useSettingsStore, AUTO_LOCK_OPTIONS, CURRENCY_OPTIONS } from '../store';
+import { useProfileStore } from '../store/profileStore';
 import BackBtn from '../components/BackBtn';
 import { copyToClipboard } from '../util';
 
@@ -35,6 +36,8 @@ function SettingsPage({ requireUnlock }) {
     notifications,
     toggleNotification
   } = useSettingsStore();
+
+  const { profile, username } = useProfileStore();
 
   const [isEditingRpc, setIsEditingRpc] = useState(false);
   const [rpcUrlInput, setRpcUrlInput] = useState('');
@@ -165,6 +168,27 @@ function SettingsPage({ requireUnlock }) {
       </div>
 
       <div className="space-y-3">
+        {/* Username Profile Card */}
+        <div
+          className="bg-gradient-to-r from-purple-900/30 to-cyan-900/30 border border-purple-500/30 rounded-lg p-4 cursor-pointer hover:border-purple-400/50 transition-colors"
+          onClick={() => navigate('/profile')}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+              <AtSign size={20} className="text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-white font-medium">
+                {username ? `@${username}` : 'Claim Username'}
+              </h3>
+              <p className="text-sm text-zinc-400">
+                {username ? 'View your profile' : 'Reserve your unique identity on-chain'}
+              </p>
+            </div>
+            <ChevronRight className="text-zinc-400" size={20} />
+          </div>
+        </div>
+
         {/* Security Settings */}
         <div className="bg-neutral-700 border border-zinc-600 rounded-lg p-3">
           <label className="block text-xs text-zinc-400 mb-3 uppercase tracking-wide flex items-center gap-2">

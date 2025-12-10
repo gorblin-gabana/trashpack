@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Send, AtSign, Loader2, Check, AlertCircle } from 'lucide-react';
 import { useTransactionStore, useWalletStore, useUIStore } from '../store';
 import SendTransactionPopup from './SendTransactionPopup';
 import PasswordPrompt from './PasswordPrompt';
 import { useNavigate } from 'react-router-dom';
 import secureStorage from '../util/secureStorage';
 import { formatBalance } from '../util';
+import profileService from '../lib/profileService';
 
 function SendForm() {
   const [toAddress, setToAddress] = useState('');
@@ -13,6 +14,13 @@ function SendForm() {
   const [showPopup, setShowPopup] = useState(false);
   const [showUnlockPrompt, setShowUnlockPrompt] = useState(false);
   const [recentAddress, setRecentAddress] = useState('');
+
+  // Username resolution state
+  const [resolvedAddress, setResolvedAddress] = useState(null);
+  const [resolvedUsername, setResolvedUsername] = useState(null);
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolveError, setResolveError] = useState(null);
+  const debounceTimerRef = useRef(null);
 
   const { sendTransaction, isLoadingSend, getTransactions, clearTransactionResult } = useTransactionStore();
   const { walletAddress, balance, fetchBalance, selectedNetwork, getKeypair, selectedEnvironment, getCurrentRpcUrl } = useWalletStore();
@@ -35,6 +43,68 @@ function SendForm() {
     loadRecentAddress();
   }, []);
 
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Handle address input change with username resolution
+  const handleAddressChange = useCallback((value) => {
+    setToAddress(value);
+    setResolveError(null);
+
+    // Clear previous timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // If empty, reset resolution state
+    if (!value.trim()) {
+      setResolvedAddress(null);
+      setResolvedUsername(null);
+      setIsResolving(false);
+      return;
+    }
+
+    // Check if it looks like a username
+    if (profileService.isUsername(value)) {
+      setIsResolving(true);
+
+      // Debounce the resolution
+      debounceTimerRef.current = setTimeout(async () => {
+        const result = await profileService.resolveToAddress(value);
+
+        if (result.isResolved && result.address) {
+          setResolvedAddress(result.address);
+          setResolvedUsername(result.username);
+          setResolveError(null);
+        } else {
+          setResolvedAddress(null);
+          setResolvedUsername(null);
+          setResolveError(result.error);
+        }
+        setIsResolving(false);
+      }, 500);
+    } else {
+      // Not a username, use as-is
+      setResolvedAddress(value.trim());
+      setResolvedUsername(null);
+      setIsResolving(false);
+    }
+  }, []);
+
+  // Get the actual address to send to (resolved or direct)
+  const getEffectiveAddress = useCallback(() => {
+    if (resolvedUsername && resolvedAddress) {
+      return resolvedAddress;
+    }
+    return toAddress.trim();
+  }, [resolvedUsername, resolvedAddress, toAddress]);
+
   // Function to save address as recent address
   const saveRecentAddress = async (address) => {
     try {
@@ -51,8 +121,11 @@ function SendForm() {
       clearTransactionResult(); // Clear any previous results
       setShowPopup(true); // Show popup immediately
 
+      // Get the effective address (resolved username or direct address)
+      const effectiveAddress = getEffectiveAddress();
+
       await sendTransaction({
-        toAddress,
+        toAddress: effectiveAddress,
         amount,
         walletAddress,
         getKeypair,
@@ -61,8 +134,8 @@ function SendForm() {
         selectedEnvironment
       });
 
-      // Save the address as recent address after successful transaction
-      await saveRecentAddress(toAddress);
+      // Save the resolved address as recent address after successful transaction
+      await saveRecentAddress(effectiveAddress);
 
       await getTransactions(walletAddress, selectedNetwork.chain, selectedEnvironment, selectedNetwork, getCurrentRpcUrl);
       // Refresh balance after successful transaction (single call after 5 seconds)
@@ -83,6 +156,15 @@ function SendForm() {
     e.preventDefault();
     if (!toAddress || !amount) return;
 
+    // If resolving is in progress, wait
+    if (isResolving) return;
+
+    // If there's a resolve error, don't proceed
+    if (resolveError) return;
+
+    // If using a username but it didn't resolve, don't proceed
+    if (profileService.isUsername(toAddress) && !resolvedAddress) return;
+
     await performTransaction();
   };
 
@@ -101,6 +183,9 @@ function SendForm() {
     // Clear form on close
     setToAddress('');
     setAmount('');
+    setResolvedAddress(null);
+    setResolvedUsername(null);
+    setResolveError(null);
     clearTransactionResult();
     navigate("/");
   };
@@ -112,10 +197,6 @@ function SendForm() {
       const maxAmount = Math.max(0, balance - estimatedFee);
       setAmount(maxAmount.toFixed(9)); // Use 9 decimal places for precision
     }
-  };
-
-  const handleAddressSuggestionClick = (address) => {
-    setToAddress(address);
   };
 
   const truncateAddress = (address) => {
@@ -142,16 +223,46 @@ function SendForm() {
           {/* Recipient Address Section */}
           <div className="bg-zinc-800 border border-zinc-600 rounded-lg p-4">
             <label className="block text-sm font-medium text-zinc-300 mb-3">
-              Recipient Address
+              Recipient Address or @username
             </label>
-            <input
-              type="text"
-              value={toAddress}
-              onChange={(e) => setToAddress(e.target.value)}
-              placeholder="Enter Solana address..."
-              className="w-full bg-zinc-700 border border-zinc-600 text-white p-2.5 rounded-md text-sm placeholder-zinc-400 focus:outline-none focus:border-cyan-400"
-              required
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={toAddress}
+                onChange={(e) => handleAddressChange(e.target.value)}
+                placeholder="Enter address or @username..."
+                className="w-full bg-zinc-700 border border-zinc-600 text-white p-2.5 pr-10 rounded-md text-sm placeholder-zinc-400 focus:outline-none focus:border-cyan-400"
+                required
+              />
+              {/* Resolution status indicator */}
+              <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                {isResolving && <Loader2 size={16} className="animate-spin text-zinc-400" />}
+                {!isResolving && resolvedUsername && resolvedAddress && (
+                  <Check size={16} className="text-green-500" />
+                )}
+                {!isResolving && resolveError && (
+                  <AlertCircle size={16} className="text-red-500" />
+                )}
+              </span>
+            </div>
+
+            {/* Username resolution feedback */}
+            {resolvedUsername && resolvedAddress && (
+              <div className="mt-2 flex items-center gap-2 text-xs">
+                <AtSign size={12} className="text-cyan-400" />
+                <span className="text-cyan-400">@{resolvedUsername}</span>
+                <span className="text-zinc-500">→</span>
+                <span className="text-zinc-400 font-mono">{truncateAddress(resolvedAddress)}</span>
+              </div>
+            )}
+
+            {/* Resolution error */}
+            {resolveError && (
+              <p className="mt-2 text-xs text-red-400 flex items-center gap-1">
+                <AlertCircle size={12} />
+                {resolveError}
+              </p>
+            )}
 
             {/* Recent address suggestion - more compact */}
             {recentAddress && !toAddress && (
@@ -160,7 +271,7 @@ function SendForm() {
                   <span className="text-xs text-zinc-400">Recent:</span>
                   <button
                     type="button"
-                    onClick={() => handleAddressSuggestionClick(recentAddress)}
+                    onClick={() => handleAddressChange(recentAddress)}
                     className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-500 rounded px-3 py-1 text-xs text-zinc-300 hover:text-white transition-colors"
                     title={recentAddress}
                   >
@@ -213,11 +324,11 @@ function SendForm() {
           {/* Send Button */}
           <button
             type="submit"
-            disabled={!toAddress || !amount || isLoadingSend}
+            disabled={!toAddress || !amount || isLoadingSend || isResolving || resolveError || (profileService.isUsername(toAddress) && !resolvedAddress)}
             className="w-full bg-gradient-to-r from-cyan-400 to-purple-600 text-white py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
           >
             <Send size={18} />
-            {isLoadingSend ? 'Sending...' : 'Send Transaction'}
+            {isLoadingSend ? 'Sending...' : isResolving ? 'Resolving...' : resolvedUsername ? `Send to @${resolvedUsername}` : 'Send Transaction'}
           </button>
         </form>
       </div>
