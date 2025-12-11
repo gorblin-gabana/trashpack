@@ -1,4 +1,4 @@
-import { LogOut, ArrowLeft, ChevronDown, Plus, Edit2, Lock, X } from 'lucide-react';
+import { LogOut, ArrowLeft, ChevronDown, Plus, Edit2, Lock, X, Star } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
@@ -6,6 +6,7 @@ import Jdenticon from 'react-jdenticon';
 // import HamburgerMenu from './HamburgerMenu';
 import { useAuthStore, useWalletStore } from '../store';
 import AddAccountModal from './AddAccountModal';
+import PointsModal from './PointsModal';
 
 function WalletHeader({ onLogout }) {
   const { principal } = useAuthStore();
@@ -31,7 +32,11 @@ function WalletHeader({ onLogout }) {
   const [password, setPassword] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [showPointsModal, setShowPointsModal] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Mock user points - will be replaced with actual data
+  const userPoints = 1250;
   
   const activeAccount = accounts && accounts.length > 0 ? (accounts[activeAccountIndex] || accounts[0]) : null;
   const shouldShowAccountDropdown = hasWallet && walletAddress;
@@ -136,17 +141,22 @@ function WalletHeader({ onLogout }) {
     }
   };
 
+  const formatPoints = (num) => {
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+  };
+
   return (
     <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-600 flex-shrink-0">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Chain Logo as Settings Button */}
         <button
           id="wallet-icon"
           onClick={handleWalletIconClick}
           className="w-8 h-8 rounded-full ring-1 ring-teal-600 hover:opacity-60 transition-all duration-200 flex items-center justify-center overflow-hidden"
         >
-          <img 
-            src={selectedNetwork.icon} 
+          <img
+            src={selectedNetwork.icon}
             alt={selectedNetwork.name}
             className="w-full h-full object-cover"
             onError={(e) => {
@@ -156,7 +166,7 @@ function WalletHeader({ onLogout }) {
             }}
           />
         </button>
-        
+
         {/* Environment Badge */}
         <span className="bg-purple-800/20 text-purple-300 border border-purple-300/30 text-xs font-medium py-0.5 px-2 rounded text-[0.65rem] tracking-wide uppercase">
           {selectedNetwork.environment}
@@ -165,6 +175,17 @@ function WalletHeader({ onLogout }) {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Gorb Points Button */}
+        {hasWallet && (
+          <button
+            onClick={() => setShowPointsModal(true)}
+            className="flex items-center gap-1 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 hover:border-yellow-400/50 px-2 py-1 rounded-md transition-all"
+          >
+            <Star size={12} className="text-yellow-400" fill="currentColor" />
+            <span className="text-xs font-semibold text-yellow-400">{formatPoints(userPoints)}</span>
+          </button>
+        )}
+
         {/* Account Dropdown - Only show when wallet exists */}
         {shouldShowAccountDropdown && (
           <div className="relative" ref={dropdownRef}>
@@ -410,6 +431,12 @@ function WalletHeader({ onLogout }) {
       <AddAccountModal
         isOpen={showAddAccountModal}
         onClose={() => setShowAddAccountModal(false)}
+      />
+
+      {/* Points Modal */}
+      <PointsModal
+        isOpen={showPointsModal}
+        onClose={() => setShowPointsModal(false)}
       />
     </div>
   );

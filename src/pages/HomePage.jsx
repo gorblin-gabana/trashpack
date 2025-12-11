@@ -104,29 +104,40 @@ function HomePage() {
       <BalanceDisplay />
       <WalletActions onReceiveClick={handleReceiveClick} />
 
-      {/* Username Claim Banner - Only show if no username claimed */}
-      {!username && (
-        <div
-          onClick={() => navigate('/profile')}
-          className="mx-3 mt-3 bg-gradient-to-r from-purple-900/40 to-cyan-900/40 border border-purple-500/30 rounded-xl p-3 cursor-pointer hover:border-purple-400/50 transition-all"
-        >
+      {/* Token Unlocks Button */}
+      <button
+        onClick={() => navigate('/token-unlocks')}
+        className="w-full mb-2 bg-gradient-to-r from-amber-600/20 to-orange-600/20 hover:from-amber-600/30 hover:to-orange-600/30 border border-amber-500/30 hover:border-amber-400/50 rounded-xl p-3 transition-all group"
+      >
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <AtSign size={20} className="text-white" />
+            <div className="w-9 h-9 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-white">Claim your @username</span>
-                <span className="px-1.5 py-0.5 bg-yellow-500/20 border border-yellow-500/30 rounded text-[10px] text-yellow-400 font-medium flex items-center gap-1">
-                  <Gift size={10} />
-                  +Points
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400 truncate">Get a unique identity & earn rewards</p>
+            <div className="text-left">
+              <span className="text-sm font-medium text-white block">Token Unlocks</span>
+              <span className="text-xs text-zinc-400">View your vesting schedules</span>
             </div>
-            <ChevronRight size={18} className="text-zinc-400 flex-shrink-0" />
           </div>
+          <ChevronRight size={18} className="text-zinc-400 group-hover:text-amber-400 transition-colors" />
         </div>
+      </button>
+
+      {/* Claim Username - Only show if no username claimed */}
+      {!username && (
+        <button
+          onClick={() => navigate('/profile')}
+          className="w-full mb-2 flex items-center justify-between px-3 py-2.5 bg-zinc-800/40 hover:bg-zinc-700/40 border border-zinc-700/30 hover:border-zinc-600/50 rounded-lg transition-all group"
+        >
+          <span className="text-sm text-zinc-300 group-hover:text-white transition-colors">Claim @username</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-yellow-400 font-medium">+500 Points</span>
+            <ChevronRight size={16} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+          </div>
+        </button>
       )}
 
       <AssetTabs />
