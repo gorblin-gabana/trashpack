@@ -23,7 +23,11 @@ function WalletActions({ onReceiveClick }) {
     };
 
     const handleSwap = () => {
-        navigate('/bridge');
+        navigate('/bridge?mode=swap');
+    };
+
+    const handleBridge = () => {
+        navigate('/bridge?mode=bridge');
     };
 
     const actions = [
@@ -37,13 +41,13 @@ function WalletActions({ onReceiveClick }) {
             hoverColor: 'from-red-400 to-red-500',
         },
         {
-            id: 'receive',
-            label: 'Receive',
-            description: 'Wallet QR code',
-            icon: QrCode,
-            onClick: handleReceive,
-            color: 'from-emerald-500 to-emerald-600',
-            hoverColor: 'from-emerald-400 to-emerald-500',
+            id: 'bridge',
+            label: 'Bridge',
+            description: 'Solana → Gorbchain',
+            icon: ArrowRightLeft,
+            onClick: handleBridge,
+            color: 'from-cyan-500 to-blue-600',
+            hoverColor: 'from-cyan-400 to-blue-500',
         },
         {
             id: 'swap',
@@ -51,8 +55,17 @@ function WalletActions({ onReceiveClick }) {
             description: 'Swap tokens',
             icon: ArrowRightLeft,
             onClick: handleSwap,
-            color: 'from-cyan-500 to-blue-600',
-            hoverColor: 'from-cyan-400 to-blue-500',
+            color: 'from-indigo-500 to-purple-600',
+            hoverColor: 'from-indigo-400 to-purple-500',
+        },
+        {
+            id: 'receive',
+            label: 'Receive',
+            description: 'Wallet QR code',
+            icon: QrCode,
+            onClick: handleReceive,
+            color: 'from-emerald-500 to-emerald-600',
+            hoverColor: 'from-emerald-400 to-emerald-500',
         },
         {
             id: 'earn',

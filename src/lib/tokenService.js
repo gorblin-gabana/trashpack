@@ -1,5 +1,7 @@
 // Token service for fetching and managing token configurations
 import tokensConfig from './tokens.json';
+import axios from 'axios';
+import { MORALIS_API_KEY } from './config';
 
 class TokenService {
   constructor() {
@@ -250,6 +252,121 @@ class TokenService {
     this.tokenCache.clear();
     this.solanaTokens = null;
     this.gorbchainTokens = null;
+  }
+
+  // Fetch live USD price for a Solana token by mint address using Moralis
+  async getTokenPrice(mintAddress) {
+    if (!mintAddress) return null;
+
+    try {
+      const url = `https://solana-gateway.moralis.io/token/mainnet/${mintAddress}/price`;
+      const response = await axios.get(url, {
+        headers: {
+          accept: 'application/json',
+          'X-API-Key': MORALIS_API_KEY,
+        },
+      });
+
+      if (!response.data || response.data.usdPrice == null) {
+        return null;
+      }
+
+      
+
+      return parseFloat(response.data.usdPrice);
+    } catch (err) {
+      console.error(`Failed to fetch price for token ${mintAddress}:`, err?.message || err);
+      return null;
+    }
+  }
+
+  /**
+   * Get full Solana mainnet portfolio (native SOL + SPL tokens) for a wallet
+   * using Moralis account portfolio API.
+   *
+   * @param {string} address - Solana wallet address (base58)
+   * @returns {Promise<{
+   *   nativeBalance: { lamports: string, solana: string },
+   *   tokens: Array,
+   *   nfts: Array
+   * } | null>}
+   */
+  async getSolanaPortfolio(address) {
+    if (!address) return null;
+
+    try {
+      const url = `https://solana-gateway.moralis.io/account/mainnet/${address}/portfolio`;
+      const params = new URLSearchParams({
+        nftMetadata: 'false',
+        mediaItems: 'false',
+        excludeSpam: 'true',
+      });
+
+      const response = await fetch(`${url}?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          accept: 'application/json',
+          'X-API-Key': MORALIS_API_KEY,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Moralis portfolio error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(data);
+      return data;
+    } catch (err) {
+      console.error(`Failed to fetch Solana portfolio for ${address}:`, err?.message || err);
+      return null;
+    }
+  }
+
+  /**
+   * Convenience helper: get native SOL and token balances from Moralis,
+   * already normalized to numbers where possible.
+   *
+   * @param {string} address
+   * @returns {Promise<{
+   *   nativeSol: number,
+   *   nativeLamports: number,
+   *   tokens: Array<{
+   *     mint: string,
+   *     amount: number,
+   *     amountRaw: string,
+   *     decimals: number,
+   *     name?: string,
+   *     symbol?: string,
+   *     logo?: string
+   *   }>
+   * } | null>}
+   */
+  async getSolanaBalances(address) {
+    const portfolio = await this.getSolanaPortfolio(address);
+    if (!portfolio) return null;
+
+    const nativeLamports = Number(portfolio.nativeBalance?.lamports || 0);
+    const nativeSol = Number(portfolio.nativeBalance?.solana || 0);
+
+    const tokens = Array.isArray(portfolio.tokens)
+      ? portfolio.tokens.map((t) => ({
+          mint: t.mint,
+          amount: Number(t.amount || 0),
+          amountRaw: t.amountRaw,
+          decimals: t.decimals,
+          name: t.name,
+          symbol: t.symbol,
+          logo: t.logo,
+          associatedTokenAddress: t.associatedTokenAddress,
+        }))
+      : [];
+
+    return {
+      nativeSol,
+      nativeLamports,
+      tokens,
+    };
   }
 }
 
