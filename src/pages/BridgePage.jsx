@@ -9,7 +9,8 @@ import newBridge from '../lib/newBridge';
 import { useWalletStore } from '../store/walletStore';
 import { useUIStore } from '../store/uiStore';
 import PasswordPrompt from '../components/PasswordPrompt';
-import { SOLANA_MAINNET_RPC } from '../lib/config';
+import { SOLANA_MAINNET_RPC, SOLANA_MAINNET_RPC_WS } from '../lib/config';
+import { NATIVE_MINT } from '@solana/spl-token';
 
 function BridgePage() {
   const navigate = useNavigate();
@@ -160,7 +161,7 @@ function BridgePage() {
     try {
       clearError();
 
-      const connection = new Connection(SOLANA_MAINNET_RPC);
+      const connection = new Connection(SOLANA_MAINNET_RPC, { wsEndpoint: SOLANA_MAINNET_RPC_WS, commitment: "confirmed" });
       const keypair = getKeypair();
 
       if (!keypair) {
@@ -183,23 +184,31 @@ function BridgePage() {
 
       // Show loading toast
       const loadingToast = toast.loading('Processing bridge transaction...');
+      console.log("toast id 0=> ", loadingToast);
+      let mint = selectedToken.mint;
+      if (new PublicKey(mint).toBase58() === new PublicKey("So11111111111111111111111111111111111111111").toBase58()) {
+        mint = "So11111111111111111111111111111111111111112";
+      }
 
       const signature = await newBridge.lock_token({
         connection,
         wallet,
         destination: recipient,
         solAmount: clampedAmount,
-        token: selectedToken
+        token: {
+          ...selectedToken,
+          mint: mint,
+        }
       });
 
       // Dismiss loading toast
-      toast.dismiss(loadingToast);
+      toast.dismiss();
 
       console.log("Signature => ", signature);
 
       // Show success toast with explorer link
       const explorerUrl = `https://solscan.io/tx/${signature}`;
-      
+
       toast.success(
         (t) => (
           <div className="flex flex-col gap-2">
@@ -215,14 +224,14 @@ function BridgePage() {
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-cyan-400 hover:text-cyan-300 underline mt-1"
-              onClick={() => toast.dismiss(t.id)}
+              onClick={() => toast.dismiss()}
             >
               View on Solscan →
             </a>
           </div>
         ),
         {
-          duration: 8000,
+          duration: 4000,
           style: {
             background: '#1f2937',
             color: '#fff',
@@ -230,6 +239,10 @@ function BridgePage() {
           },
         }
       );
+
+      setTimeout(() => {
+        toast.dismiss();
+      }, 4000)
 
       // Reset form
       setAmount('');
@@ -242,7 +255,11 @@ function BridgePage() {
         setShowUnlockPrompt(true);
       } else {
         setError(err.message);
-        toast.error(err?.message || 'Bridge failed');
+        toast.error(err?.message || 'Bridge failed', { duration: 1000 });
+
+        setTimeout(() => {
+          setError(null);
+        }, 4000);
       }
     }
   };
@@ -477,8 +494,8 @@ function BridgePage() {
                       setIsTokenModalOpen(false);
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-left transition-colors ${selectedMint === t.mint
-                        ? 'bg-cyan-500/20 border border-cyan-500/50'
-                        : 'bg-gray-800/70 border border-gray-800 hover:bg-gray-800 hover:border-cyan-500/40'
+                      ? 'bg-cyan-500/20 border border-cyan-500/50'
+                      : 'bg-gray-800/70 border border-gray-800 hover:bg-gray-800 hover:border-cyan-500/40'
                       }`}
                   >
                     <div className="flex items-center gap-2">

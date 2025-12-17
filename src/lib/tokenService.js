@@ -257,9 +257,13 @@ class TokenService {
   // Fetch live USD price for a Solana token by mint address using Moralis
   async getTokenPrice(mintAddress) {
     if (!mintAddress) return null;
+    let mint = mintAddress;
+    if (mint === 'So11111111111111111111111111111111111111111') {
+      mint = "So11111111111111111111111111111111111111112";
+    }
 
     try {
-      const url = `https://solana-gateway.moralis.io/token/mainnet/${mintAddress}/price`;
+      const url = `https://solana-gateway.moralis.io/token/mainnet/${mint}/price`;
       const response = await axios.get(url, {
         headers: {
           accept: 'application/json',

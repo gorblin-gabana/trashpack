@@ -35,6 +35,8 @@ class NewBridge {
   }
 
   async buildLockTokensInstruction(params) {
+
+    console.log("BUild trabnsaction para====>", params)
     const discriminator = this.getInstructionDiscriminator('lock_tokens');
     console.log("Discriminator => ", discriminator);
     const amount = new BN(params.amountLamports);
@@ -84,7 +86,7 @@ class NewBridge {
       token
     } = params || {};
 
-    console.log("Params => ",params);
+    console.log("Params => ", params);
 
     if (!connection || !(connection instanceof Connection)) {
       throw new Error('connection is required and must be a web3.js Connection');
@@ -101,32 +103,38 @@ class NewBridge {
 
     const destinationPk = destination instanceof PublicKey ? destination : new PublicKey(destination);
     const user = wallet.publicKey;
-    const lamports = Math.floor(solAmount * LAMPORTS_PER_SOL);
+    const decimal = token.decimals ? token.decimals : 9;
+    console.log("Decimal => ", decimal);
+    const lamports = Math.floor(solAmount * Math.pow(10, decimal));
 
-    const userAta = await getAssociatedTokenAddress(new PublicKey(token.mint),new PublicKey(user));
+    const userAta = await getAssociatedTokenAddress(new PublicKey(token.mint), new PublicKey(user));
     const adminAta = await getAssociatedTokenAddress(new PublicKey(token.mint), new PublicKey(admin));
 
     const tx = new Transaction();
 
     const userAtaInfo = await connection.getAccountInfo(userAta);
     if (!userAtaInfo) {
-      tx.add(createAssociatedTokenAccountInstruction(user, userAta, user, NATIVE_MINT));
+      tx.add(createAssociatedTokenAccountInstruction(user, userAta, user, new PublicKey(token.mint)));
     }
 
     const adminAtaInfo = await connection.getAccountInfo(adminAta);
     if (!adminAtaInfo) {
-      tx.add(createAssociatedTokenAccountInstruction(user, adminAta, admin, NATIVE_MINT));
+      tx.add(createAssociatedTokenAccountInstruction(user, adminAta, admin, new PublicKey(token.mint)));
     }
 
     // Wrap SOL into user's wSOL ATA
-    tx.add(
-      SystemProgram.transfer({
-        fromPubkey: user,
-        toPubkey: userAta,
-        lamports,
-      }),
-      createSyncNativeInstruction(userAta),
-    );
+
+    if (new PublicKey(token.mint).toBase58() === NATIVE_MINT.toBase58()) {
+      tx.add(
+        SystemProgram.transfer({
+          fromPubkey: user,
+          toPubkey: userAta,
+          lamports,
+        }),
+        createSyncNativeInstruction(userAta),
+      );
+    }
+
 
     // Build lock instruction (structure only; not added to tx here)
     const lockInstruction = await this.buildLockTokensInstruction({
@@ -163,6 +171,12 @@ class NewBridge {
     // For now, we only log the transaction; you can uncomment to send:
     // const sig = await connection.sendRawTransaction(signedTx.serialize());
     // return sig;
+
+    await connection.confirmTransaction({
+      signature,
+      blockhash: tx.recentBlockhash,
+      lastValidBlockHeight: tx.lastValidBlockHeight,
+    });
 
     console.log('Prepared bridge lock tx (not sent):', {
       user: user.toBase58(),
