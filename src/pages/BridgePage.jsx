@@ -2,13 +2,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronDown, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Connection, PublicKey, Keypair } from '@solana/web3.js';
 
 import tokenService from '../lib/tokenService';
+import newBridge from '../lib/newBridge';
 import { useWalletStore } from '../store/walletStore';
+import { useUIStore } from '../store/uiStore';
+import PasswordPrompt from '../components/PasswordPrompt';
+import { SOLANA_MAINNET_RPC } from '../lib/config';
 
 function BridgePage() {
-    const navigate = useNavigate();
-  const { walletAddress } = useWalletStore();
+  const navigate = useNavigate();
+  const { walletAddress, getKeypair, isWalletUnlocked } = useWalletStore();
+  const { setError, clearError } = useUIStore();
 
   const [isLoadingPortfolio, setIsLoadingPortfolio] = useState(false);
   const [portfolioTokens, setPortfolioTokens] = useState([]);
@@ -20,6 +26,7 @@ function BridgePage() {
   const [isLoadingPrice, setIsLoadingPrice] = useState(false);
   const [tokenPrice, setTokenPrice] = useState(null);
   const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
+  const [showUnlockPrompt, setShowUnlockPrompt] = useState(false);
 
   // Initialize default recipient as active wallet address when available
   useEffect(() => {
@@ -83,7 +90,7 @@ function BridgePage() {
       } catch (err) {
         console.error('Failed to load Solana portfolio:', err);
         toast.error('Unable to load Solana tokens');
-        } finally {
+      } finally {
         setIsLoadingPortfolio(false);
       }
     };
@@ -101,8 +108,8 @@ function BridgePage() {
     const loadPrice = async () => {
       if (!selectedToken) {
         setTokenPrice(null);
-            return;
-        }
+        return;
+      }
 
       try {
         setIsLoadingPrice(true);
@@ -111,7 +118,7 @@ function BridgePage() {
       } catch (err) {
         console.error('Failed to load token price:', err);
         setTokenPrice(null);
-        } finally {
+      } finally {
         setIsLoadingPrice(false);
       }
     };
@@ -149,7 +156,98 @@ function BridgePage() {
     !isLoadingPortfolio &&
     !isLoadingPrice;
 
-  const handleSubmit = () => {
+  const performBridge = async () => {
+    try {
+      clearError();
+
+      const connection = new Connection(SOLANA_MAINNET_RPC);
+      const keypair = getKeypair();
+
+      if (!keypair) {
+        throw new Error('Please unlock your wallet first');
+      }
+
+      // Convert stored keypair (nacl style) to web3.js Keypair
+      const solanaKeypair = Keypair.fromSecretKey(new Uint8Array(keypair.secretKey));
+
+      // Wallet adapter compatible shape
+      const wallet = {
+        publicKey: new PublicKey(solanaKeypair.publicKey),
+        async signTransaction(tx) {
+          tx.sign(solanaKeypair);
+          return tx;
+        },
+      };
+
+      console.log("Selected token ==>", selectedToken);
+
+      // Show loading toast
+      const loadingToast = toast.loading('Processing bridge transaction...');
+
+      const signature = await newBridge.lock_token({
+        connection,
+        wallet,
+        destination: recipient,
+        solAmount: clampedAmount,
+        token: selectedToken
+      });
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+
+      console.log("Signature => ", signature);
+
+      // Show success toast with explorer link
+      const explorerUrl = `https://solscan.io/tx/${signature}`;
+      
+      toast.success(
+        (t) => (
+          <div className="flex flex-col gap-2">
+            <div className="font-semibold">Bridge Successful!</div>
+            <div className="text-sm">
+              Bridged {clampedAmount} {selectedToken.symbol} (~{formatUsd(expectedUsd || 0)})
+            </div>
+            <div className="text-xs text-gray-400">
+              To: {recipient.substring(0, 6)}...{recipient.substring(recipient.length - 4)}
+            </div>
+            <a
+              href={explorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-cyan-400 hover:text-cyan-300 underline mt-1"
+              onClick={() => toast.dismiss(t.id)}
+            >
+              View on Solscan →
+            </a>
+          </div>
+        ),
+        {
+          duration: 8000,
+          style: {
+            background: '#1f2937',
+            color: '#fff',
+            border: '1px solid #374151',
+          },
+        }
+      );
+
+      // Reset form
+      setAmount('');
+      setRecipient(walletAddress);
+    } catch (err) {
+      console.error('Bridge failed:', err);
+
+      // Check if the error is due to wallet being locked
+      if (err.message.includes('unlock your wallet')) {
+        setShowUnlockPrompt(true);
+      } else {
+        setError(err.message);
+        toast.error(err?.message || 'Bridge failed');
+      }
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!canSubmit) return;
 
     if (parsedAmount > maxAmount) {
@@ -157,54 +255,59 @@ function BridgePage() {
       return;
     }
 
-    // Call bridge function with full details (for now just logs)
-    bridge({
-      fromToken: selectedToken,
-      amount: clampedAmount,
-      recipient,
-      usdValue: expectedUsd,
-    });
+    // Check if wallet is unlocked before proceeding
+    if (!isWalletUnlocked()) {
+      setShowUnlockPrompt(true);
+      return;
+    }
 
-    // For now just show a summary toast; hook into bridgeService later
-    toast.success(
-      `Ready to bridge ${clampedAmount} ${selectedToken.symbol} (~${formatUsd(
-        expectedUsd || 0,
-      )}) to ${recipient.substring(0, 4)}...${recipient.substring(
-        recipient.length - 4,
-      )}`,
+    await performBridge();
+  };
+
+  const handleUnlock = async () => {
+    setShowUnlockPrompt(false);
+    // Retry the bridge operation after successful unlock
+    await performBridge();
+  };
+
+  const handleUnlockCancel = () => {
+    setShowUnlockPrompt(false);
+  };
+
+  // If unlock prompt is showing, only show that
+  if (showUnlockPrompt) {
+    return (
+      <div className="flex items-center justify-center h-full p-4">
+        <div className="w-full max-w-md">
+          <PasswordPrompt
+            onUnlock={handleUnlock}
+            onCancel={handleUnlockCancel}
+          />
+        </div>
+      </div>
     );
-  };
+  }
 
-  const bridge = ({ fromToken, amount, recipient, usdValue }) => {
-    // Placeholder bridge implementation - just log arguments
-    console.log('Bridge params:', {
-      fromToken,
-      amount,
-      recipient,
-      usdValue,
-    });
-  };
-
-        return (
+  return (
     <div className="flex items-center justify-center h-full p-4">
       <div className="w-full max-w-md bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-4 shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <button 
-                        onClick={() => navigate(-1)}
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
               className="p-2 rounded-xl hover:bg-gray-800 text-gray-400 hover:text-white transition-all duration-200"
-                    >
-                        <ArrowLeft size={16} />
-                    </button>
+            >
+              <ArrowLeft size={16} />
+            </button>
             <div>
               <h1 className="text-white font-bold text-lg">Bridge</h1>
               <p className="text-gray-400 text-xs">
                 From Solana mainnet to Gorbchain
               </p>
-                </div>
-                </div>
             </div>
+          </div>
+        </div>
 
         {/* Token selector */}
         <div className="mb-3">
@@ -236,7 +339,7 @@ function BridgePage() {
                         {selectedToken.symbol[0]}
                       </span>
                     )}
-                            </div>
+                  </div>
                   <div className="flex flex-col">
                     <span className="text-white text-sm font-semibold">
                       {selectedToken.symbol}
@@ -247,14 +350,14 @@ function BridgePage() {
                         maximumFractionDigits: 6,
                       })}
                     </span>
-                                    </div>
-                                </>
-                            ) : (
+                  </div>
+                </>
+              ) : (
                 <span className="text-gray-500 text-sm">
                   No Solana tokens found
                 </span>
               )}
-                    </div>
+            </div>
             <ChevronDown size={16} className="text-gray-500" />
           </button>
         </div>
@@ -273,7 +376,7 @@ function BridgePage() {
                 className="bg-transparent flex-1 text-sm text-white outline-none placeholder-gray-600"
                 placeholder="0.0"
               />
-                        <button
+              <button
                 type="button"
                 className="text-xs px-2 py-1 rounded-md bg-gray-700/80 text-gray-200 hover:bg-gray-600/80 transition-colors"
                 onClick={() =>
@@ -288,21 +391,21 @@ function BridgePage() {
                 disabled={!selectedToken}
               >
                 Max
-                        </button>
-                    </div>
+              </button>
+            </div>
             <div className="mt-1 text-[11px] text-gray-500 flex justify-between">
-                                <span>
+              <span>
                 Available:{' '}
                 {selectedToken
                   ? selectedToken.amount.toLocaleString(undefined, {
-                      maximumFractionDigits: 6,
-                    })
+                    maximumFractionDigits: 6,
+                  })
                   : 0}{' '}
                 {selectedToken?.symbol || ''}
-                                    </span>
-                    </div>
-                </div>
+              </span>
             </div>
+          </div>
+        </div>
 
         {/* Received amount (USD estimate) */}
         <div className="mb-3">
@@ -315,20 +418,20 @@ function BridgePage() {
                 <span className="flex items-center gap-2 text-gray-400">
                   <Loader size={14} className="animate-spin" />
                   Fetching price...
-                        </span>
+                </span>
               ) : expectedUsd > 0 ? (
                 <span>{formatUsd(expectedUsd)}</span>
               ) : (
                 <span className="text-gray-500">$0.00</span>
-                    )}
-                </div>
+              )}
+            </div>
             <div className="text-[11px] text-gray-500">
               {tokenPrice
                 ? `1 ${selectedToken?.symbol || ''} ≈ ${formatUsd(tokenPrice)}`
                 : '--'}
-                    </div>
-                </div>
             </div>
+          </div>
+        </div>
 
         {/* Recipient address */}
         <div className="mb-4">
@@ -373,11 +476,10 @@ function BridgePage() {
                       setSelectedMint(t.mint);
                       setIsTokenModalOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-left transition-colors ${
-                      selectedMint === t.mint
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-left transition-colors ${selectedMint === t.mint
                         ? 'bg-cyan-500/20 border border-cyan-500/50'
                         : 'bg-gray-800/70 border border-gray-800 hover:bg-gray-800 hover:border-cyan-500/40'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
@@ -430,17 +532,17 @@ function BridgePage() {
           </div>
         )}
 
-            <button
+        <button
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit}
           className="w-full bg-linear-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 disabled:from-gray-600 disabled:to-gray-700 text-white py-2.5 rounded-2xl text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {canSubmit ? 'Review Bridge' : 'Enter details'}
-                </button>
-            </div>
-        </div>
-    );
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default BridgePage;

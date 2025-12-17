@@ -28,6 +28,7 @@ import PasswordPrompt from './components/PasswordPrompt';
 
 // Utilities
 import migrationService from './util/migration';
+import SwapPage from './pages/SwapPage';
 
 // Enable console logging for debugging authentication issues
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -248,6 +249,7 @@ function App() {
                     <Route path="/send" element={<SendPage requireUnlock={requireUnlock} />} />
                     <Route path="/receive" element={<ReceivePage />} />
                     <Route path="/bridge" element={<CrossChainSwapPage requireUnlock={requireUnlock} />} />
+                    <Route path="/swap" element={<SwapPage requireUnlock={requireUnlock} />} />
                     <Route path="/earn" element={<EarnPage />} />
                     <Route path="/profile" element={<ProfilePage requireUnlock={requireUnlock} />} />
                     <Route path="/token-unlocks" element={<TokenUnlocksPage />} />

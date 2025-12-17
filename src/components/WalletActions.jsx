@@ -23,7 +23,7 @@ function WalletActions({ onReceiveClick }) {
     };
 
     const handleSwap = () => {
-        navigate('/bridge?mode=swap');
+        navigate('/swap?mode=swap');
     };
 
     const handleBridge = () => {
