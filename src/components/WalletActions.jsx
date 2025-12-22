@@ -22,12 +22,8 @@ function WalletActions({ onReceiveClick }) {
         navigate('/send');
     };
 
-    const handleSwap = () => {
-        navigate('/swap?mode=swap');
-    };
-
-    const handleBridge = () => {
-        navigate('/bridge?mode=bridge');
+    const handleTrade = () => {
+        navigate('/trade');
     };
 
     const actions = [
@@ -41,22 +37,13 @@ function WalletActions({ onReceiveClick }) {
             hoverColor: 'from-red-400 to-red-500',
         },
         {
-            id: 'bridge',
-            label: 'Bridge',
-            description: 'Solana → Gorbchain',
+            id: 'trade',
+            label: 'Trade',
+            description: 'SOL → GORB',
             icon: ArrowRightLeft,
-            onClick: handleBridge,
-            color: 'from-cyan-500 to-blue-600',
-            hoverColor: 'from-cyan-400 to-blue-500',
-        },
-        {
-            id: 'swap',
-            label: 'Swap',
-            description: 'Swap tokens',
-            icon: ArrowRightLeft,
-            onClick: handleSwap,
-            color: 'from-indigo-500 to-purple-600',
-            hoverColor: 'from-indigo-400 to-purple-500',
+            onClick: handleTrade,
+            color: 'from-[#00DFD8] to-[#6A0DAD]',
+            hoverColor: 'from-[#00DFD8]/90 to-[#6A0DAD]/90',
         },
         {
             id: 'receive',

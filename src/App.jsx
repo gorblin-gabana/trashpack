@@ -13,7 +13,7 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import SendPage from './pages/SendPage';
 import ReceivePage from './pages/ReceivePage';
-import CrossChainSwapPage from './pages/BridgePage';
+import TradePage from './pages/TradePage';
 import EarnPage from './pages/EarnPage';
 import ProfilePage from './pages/ProfilePage';
 import TokenUnlocksPage from './pages/TokenUnlocksPage';
@@ -28,7 +28,6 @@ import PasswordPrompt from './components/PasswordPrompt';
 
 // Utilities
 import migrationService from './util/migration';
-import SwapPage from './pages/SwapPage';
 
 // Enable console logging for debugging authentication issues
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -248,8 +247,7 @@ function App() {
                     <Route index element={<HomePage />} />
                     <Route path="/send" element={<SendPage requireUnlock={requireUnlock} />} />
                     <Route path="/receive" element={<ReceivePage />} />
-                    <Route path="/bridge" element={<CrossChainSwapPage requireUnlock={requireUnlock} />} />
-                    <Route path="/swap" element={<SwapPage requireUnlock={requireUnlock} />} />
+                    <Route path="/trade" element={<TradePage />} />
                     <Route path="/earn" element={<EarnPage />} />
                     <Route path="/profile" element={<ProfilePage requireUnlock={requireUnlock} />} />
                     <Route path="/token-unlocks" element={<TokenUnlocksPage />} />

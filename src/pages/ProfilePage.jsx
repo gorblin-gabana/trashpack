@@ -360,7 +360,7 @@ function ProfilePage({ requireUnlock }) {
         </button>
 
         <p className="text-xs text-zinc-500 text-center">
-          Transaction fee: ~0.002 SOL
+          Transaction fee: ~0.002 GORB
         </p>
       </div>
 

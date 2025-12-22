@@ -35,6 +35,7 @@ const PROGRAM_ID = new PublicKey('GrJrqEtxztquco6Zsg9WfrArYwy5BZwzJ4ce4TfcJLuJ')
 const PROFILE_IDL = {
   version: "0.1.0",
   name: "profile",
+  address: "GrJrqEtxztquco6Zsg9WfrArYwy5BZwzJ4ce4TfcJLuJ",
   instructions: [
     {
       name: "createProfile",
@@ -225,7 +226,7 @@ class ProfileService {
         { commitment: 'confirmed' }
       );
 
-      const program = new Program(PROFILE_IDL, PROGRAM_ID, provider);
+      const program = new Program(PROFILE_IDL, provider);
       const profileData = program.coder.accounts.decode('Profile', accountInfo.data);
 
       const result = {
@@ -282,7 +283,7 @@ class ProfileService {
         { commitment: 'confirmed' }
       );
 
-      const program = new Program(PROFILE_IDL, PROGRAM_ID, provider);
+      const program = new Program(PROFILE_IDL, provider);
       const reverseData = program.coder.accounts.decode('ReverseProfile', accountInfo.data);
 
       // Now fetch the full profile using the username from reverse lookup
@@ -352,7 +353,7 @@ class ProfileService {
       );
 
       // Create program instance
-      const program = new Program(PROFILE_IDL, PROGRAM_ID, provider);
+      const program = new Program(PROFILE_IDL, provider);
 
       // Validate and sanitize inputs
       const validatedUsername = this.validateUsername(username);
@@ -464,7 +465,7 @@ class ProfileService {
       );
 
       // Create program instance
-      const program = new Program(PROFILE_IDL, PROGRAM_ID, provider);
+      const program = new Program(PROFILE_IDL, provider);
 
       // Validate and sanitize inputs
       const validatedBio = this.sanitizeString(bio, 200);

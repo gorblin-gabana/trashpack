@@ -65,8 +65,8 @@ function HomePage() {
           break;
         case 'w':
           event.preventDefault();
-          navigate('/bridge');
-          toast.success('Opening Swap...', {
+          navigate('/trade');
+          toast.success('Opening Trade...', {
             icon: '🔄',
             duration: 1500,
             style: {
