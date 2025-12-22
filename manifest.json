@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TrashPack - Wallet Extension",
-  "version": "2.0.0",
+  "version": "1.6.0",
   "description": "TrashPack - A Secure Solana wallet Chrome extension for managing cryptocurrency",
   "icons": {
     "16": "icons/icon16.png",
@@ -18,7 +18,17 @@
     "scripting"
   ],
   "host_permissions": [
-    "http://localhost:*/*"
+    "https://rpc.gorbchain.xyz/*",
+    "https://api.devnet.solana.com/*",
+    "https://devnet.gorbchain.xyz/*",
+    "https://mainnet.helius-rpc.com/*",
+    "https://solana-mainnet.g.alchemy.com/*"
+  ],
+  "optional_host_permissions": [
+    "http://localhost:5173/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1/*",
+    "http://[::1]/*"
   ],
   "action": {
     "default_popup": "popup.html",

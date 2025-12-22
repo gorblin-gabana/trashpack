@@ -84,6 +84,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleAuthCompleted(message, sender, sendResponse);
       return true;
 
+    case 'REQUEST_DEV_HOST_PERMISSION':
+      // Request optional dev localhost host permissions at runtime
+      chrome.permissions.request({
+        origins: [
+          'http://localhost:5173/*',
+          'http://localhost:3000/*',
+          'http://127.0.0.1/*',
+          'http://[::1]/*'
+        ]
+      }, (granted) => {
+        sendResponse({ success: true, granted });
+      });
+      return true;
+
+    case 'CHECK_DEV_HOST_PERMISSION':
+      // Check whether optional dev host permissions are already granted
+      chrome.permissions.contains({
+        origins: [
+          'http://localhost:5173/*',
+          'http://localhost:3000/*',
+          'http://127.0.0.1/*',
+          'http://[::1]/*'
+        ]
+      }, (result) => {
+        sendResponse({ success: true, granted: result });
+      });
+      return true;
+
     default:
       console.log('Unknown message type:', message.type);
       sendResponse({ error: 'Unknown message type' });
