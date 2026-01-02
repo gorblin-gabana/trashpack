@@ -55,6 +55,14 @@ function TradePage() {
     loadPortfolio();
   }, [walletAddress]);
 
+  // Refresh portfolio when returning to the page (on mount)
+  useEffect(() => {
+    // Force refresh when component mounts
+    if (walletAddress) {
+      loadPortfolio();
+    }
+  }, []);
+
   // Load both Solana and Gorbchain portfolios
   const loadPortfolio = async () => {
     if (!walletAddress) return;
@@ -182,12 +190,48 @@ function TradePage() {
   const bridgeFee = 0.003;
   const estimatedTime = '~5 min';
 
-  // Determine bridge direction based on selected token
+  // Determine bridge direction and destination token based on selected token
   const bridgeDirection = useMemo(() => {
     if (!selectedToken) return { from: 'Solana', to: 'Gorbchain' };
     return selectedToken.chain === 'solana' 
       ? { from: 'Solana', to: 'Gorbchain' }
       : { from: 'Gorbchain', to: 'Solana' };
+  }, [selectedToken]);
+
+  // Constant wrapped token on Gorbchain for Solana -> Gorbchain bridge
+  const WRAPPED_TOKEN_GORBCHAIN = {
+    mintAddress: 'aacJqpHJUXcmqqVgKLDzJDWrDQN1Kdx9H14aq7wQSp4',
+    programId: 'G22oYgZ6LnVcy7v8eSNi2xpNk1NcZiPD8CVKSTut7oZ6',
+    symbol: 'MTK',
+    name: 'My Token',
+    decimals: 9,
+    uri: 'https://example.com/metadata.json',
+    price: 1.0, // Hardcoded price: $1 per MTK
+  };
+
+  // Get the destination token info (what user will receive)
+  const destinationToken = useMemo(() => {
+    if (!selectedToken) return { symbol: 'MTK', name: 'My Token', isWrapped: true, price: 1.0 };
+    
+    if (selectedToken.chain === 'solana') {
+      // Bridging from Solana to Gorbchain
+      // The received token will always be the wrapped MTK token on Gorbchain
+      return {
+        symbol: WRAPPED_TOKEN_GORBCHAIN.symbol,
+        name: WRAPPED_TOKEN_GORBCHAIN.name,
+        mint: WRAPPED_TOKEN_GORBCHAIN.mintAddress,
+        decimals: WRAPPED_TOKEN_GORBCHAIN.decimals,
+        price: WRAPPED_TOKEN_GORBCHAIN.price,
+        isWrapped: true
+      };
+    } else {
+      // Bridging from Gorbchain to Solana (future implementation)
+      return {
+        symbol: selectedToken.symbol,
+        name: selectedToken.name,
+        isWrapped: true
+      };
+    }
   }, [selectedToken]);
 
   // Load token price
@@ -225,6 +269,14 @@ function TradePage() {
     }
     return 0;
   }, [clampedAmount, tokenPrice]);
+
+  // Calculate expected USD for received token
+  const expectedReceivedUsd = useMemo(() => {
+    if (selectedToken?.chain === 'solana' && destinationToken.price && estimatedReceived > 0) {
+      return estimatedReceived * destinationToken.price;
+    }
+    return 0;
+  }, [selectedToken, destinationToken, estimatedReceived]);
 
   const formatUsd = (value) =>
     `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -365,6 +417,8 @@ function TradePage() {
     setAmount('');
     setDestinationAddress(walletAddress || '');
     setResult(null);
+    // Refresh portfolio after successful bridge
+    loadPortfolio();
   };
 
   const handleImageError = (imageKey) => {
@@ -583,21 +637,26 @@ function TradePage() {
               )}
             </div>
             <div className="text-xs text-zinc-500 mt-1">
-              {expectedUsd > 0 ? `~${formatUsd(expectedUsd)}` : '$0.00'}
+              {expectedReceivedUsd > 0 ? `~${formatUsd(expectedReceivedUsd)}` : '$0.00'}
             </div>
           </div>
 
           <div className="flex items-center gap-2 bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2">
             <TokenIcon 
-              tokenSymbol={bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB'} 
-              logo={tokenService.getDefaultIcon(bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB')} 
+              tokenSymbol={destinationToken.symbol} 
+              logo={tokenService.getDefaultIcon(destinationToken.symbol)} 
               size="w-6 h-6" 
             />
             <div className="flex flex-col items-start">
-              <span className="text-white font-semibold text-sm">
-                {bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB'}
-              </span>
-              <span className="text-zinc-400 text-xs">{bridgeDirection.to}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-white font-semibold text-sm">
+                  {destinationToken.symbol}
+                </span>
+                {destinationToken.isWrapped && (
+                  <span className="text-[9px] text-cyan-400 uppercase">wrapped</span>
+                )}
+              </div>
+              <span className="text-zinc-400 text-xs">{destinationToken.name}</span>
             </div>
           </div>
         </div>
@@ -686,12 +745,12 @@ function TradePage() {
           <span className="text-zinc-400 text-sm">You Receive</span>
           <div className="flex items-center gap-2">
             <TokenIcon 
-              tokenSymbol={bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB'} 
-              logo={tokenService.getDefaultIcon(bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB')} 
+              tokenSymbol={destinationToken.symbol} 
+              logo={tokenService.getDefaultIcon(destinationToken.symbol)} 
               size="w-5 h-5" 
             />
             <span className="text-[#00DFD8] font-semibold">
-              ~{estimatedReceived.toFixed(4)} {bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB'}
+              ~{estimatedReceived.toFixed(4)} {destinationToken.symbol}
             </span>
           </div>
         </div>
