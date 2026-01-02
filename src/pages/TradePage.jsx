@@ -6,10 +6,11 @@ import { Connection, PublicKey, Keypair } from '@solana/web3.js';
 
 import tokenService from '../lib/tokenService';
 import newBridge from '../lib/newBridge';
+import { universalSwap } from '../lib/swapService';
 import { useWalletStore } from '../store/walletStore';
 import { useUIStore } from '../store/uiStore';
 import PasswordPrompt from '../components/PasswordPrompt';
-import { SOLANA_MAINNET_RPC, SOLANA_MAINNET_RPC_WS } from '../lib/config';
+import { networks, SOLANA_MAINNET_RPC, SOLANA_MAINNET_RPC_WS } from '../lib/config';
 
 function TradePage() {
   const navigate = useNavigate();
@@ -19,12 +20,22 @@ function TradePage() {
 
   // Core state
   const [currentStep, setCurrentStep] = useState('form');
+  const [operationType, setOperationType] = useState('bridge'); // 'bridge' or 'swap'
 
   // Unified portfolio state (Solana + Gorbchain tokens)
   const [portfolioTokens, setPortfolioTokens] = useState([]);
   const [selectedMint, setSelectedMint] = useState(null);
   const [isLoadingPortfolio, setIsLoadingPortfolio] = useState(false);
   const [isLoadingGorbTokens, setIsLoadingGorbTokens] = useState(false);
+
+  // Swap-specific state
+  const [pools, setPools] = useState([]);
+  const [isLoadingPools, setIsLoadingPools] = useState(false);
+  const [matchingPools, setMatchingPools] = useState([]);
+  const [selectedPool, setSelectedPool] = useState(null);
+  const [destinationTokens, setDestinationTokens] = useState([]);
+  const [selectedDestinationMint, setSelectedDestinationMint] = useState(null);
+  const [showDestinationTokenModal, setShowDestinationTokenModal] = useState(false);
 
   // Amount and destination
   const [amount, setAmount] = useState('');
@@ -61,6 +72,11 @@ function TradePage() {
     if (walletAddress) {
       loadPortfolio();
     }
+  }, []);
+
+  // Fetch and cache pools on mount
+  useEffect(() => {
+    fetchPools();
   }, []);
 
   // Load both Solana and Gorbchain portfolios
@@ -124,7 +140,7 @@ function TradePage() {
       
       if (gorbBalance !== null && gorbBalance !== undefined) {
         allTokens.push({
-          mint: 'native-gorb',
+          mint: 'So11111111111111111111111111111111111111112',
           symbol: 'GORB',
           name: 'Gorbchain',
           decimals: 9,
@@ -278,10 +294,29 @@ function TradePage() {
     return 0;
   }, [selectedToken, destinationToken, estimatedReceived]);
 
+  // Update operation type based on selected token
+  useEffect(() => {
+    if (selectedToken) {
+      if (selectedToken.chain === 'gorbchain') {
+        setOperationType('swap');
+        // Find matching pools for swap
+        findMatchingPools(selectedToken.mint);
+      } else {
+        setOperationType('bridge');
+        setMatchingPools([]);
+        setSelectedPool(null);
+        setDestinationTokens([]);
+        setSelectedDestinationMint(null);
+      }
+    }
+  }, [selectedToken]);
+
   const formatUsd = (value) =>
     `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const canSubmit = !!selectedToken && clampedAmount > 0 && destinationAddress.trim().length > 0 && !isLoadingPortfolio && !isLoadingPrice && !isLoadingGorbTokens;
+  const canSubmit = operationType === 'swap' 
+    ? !!selectedToken && clampedAmount > 0 && !!selectedDestinationMint && !isLoadingPortfolio && !isLoadingPrice && !isLoadingGorbTokens
+    : !!selectedToken && clampedAmount > 0 && destinationAddress.trim().length > 0 && !isLoadingPortfolio && !isLoadingPrice && !isLoadingGorbTokens;
 
   // Handlers
   const handleAmountChange = (value) => {
@@ -311,6 +346,256 @@ function TradePage() {
     setShowTokenModal(false);
   };
 
+  // Fetch pools from Gorbchain API
+  const fetchPools = async () => {
+    if (pools.length > 0) {
+      console.log('✅ Pools already cached, skipping fetch');
+      return;
+    }
+
+    setIsLoadingPools(true);
+    try {
+      console.log('🔄 Fetching pools from Gorbchain API...');
+      const API_URL = 'https://api.gorbscan.com/api';
+      const response = await fetch(`${API_URL}/pool/pools`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Pools fetched successfully:', result);
+
+      const poolsData = result.success && result.data ? result.data : (Array.isArray(result) ? result : []);
+      
+      if (Array.isArray(poolsData) && poolsData.length > 0) {
+        console.log(`🔄 Processing ${poolsData.length} pools from API...`);
+        setPools(poolsData);
+        console.log(`✅ Cached ${poolsData.length} pools`);
+      } else {
+        console.warn('⚠️ No pools data found in API response');
+        setPools([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching pools:', error);
+      setPools([]);
+    } finally {
+      setIsLoadingPools(false);
+    }
+  };
+
+  // Find matching pools for the selected token
+  const findMatchingPools = (tokenMint) => {
+    console.log('🔍 Finding pools for token:', tokenMint);
+    
+    const matches = pools.filter(pool => {
+      const tokenAMint = pool.tokenA || pool.tokenAInfo?.mintAddress || '';
+      const tokenBMint = pool.tokenB || pool.tokenBInfo?.mintAddress || '';
+      
+      return tokenAMint === tokenMint || tokenBMint === tokenMint;
+    });
+
+    console.log(`✅ Found ${matches.length} matching pools:`, matches);
+    setMatchingPools(matches);
+
+    if (matches.length > 0) {
+      // Select first pool by default
+      const firstPool = matches[0];
+      setSelectedPool(firstPool);
+      console.log('✅ Selected first pool:', firstPool);
+
+      // Extract destination tokens from matching pools
+      const destTokens = matches.map(pool => {
+        const tokenAMint = pool.tokenA || pool.tokenAInfo?.mintAddress || '';
+        const tokenBMint = pool.tokenB || pool.tokenBInfo?.mintAddress || '';
+        
+        // Return the token that's NOT the selected token
+        if (tokenAMint === tokenMint) {
+          return {
+            mint: tokenBMint,
+            symbol: pool.tokenBInfo?.symbol || 'Unknown',
+            name: pool.tokenBInfo?.name || 'Unknown Token',
+            decimals: parseInt(pool.tokenBInfo?.decimals || '9'),
+            logo: pool.tokenBInfo?.uri || pool.tokenBInfo?.metadata?.tokenMetadata?.image,
+            pool: pool
+          };
+        } else {
+          return {
+            mint: tokenAMint,
+            symbol: pool.tokenAInfo?.symbol || 'Unknown',
+            name: pool.tokenAInfo?.name || 'Unknown Token',
+            decimals: parseInt(pool.tokenAInfo?.decimals || '9'),
+            logo: pool.tokenAInfo?.uri || pool.tokenAInfo?.metadata?.tokenMetadata?.image,
+            pool: pool
+          };
+        }
+      });
+
+      setDestinationTokens(destTokens);
+      
+      // Select first destination token by default
+      if (destTokens.length > 0) {
+        setSelectedDestinationMint(destTokens[0].mint);
+        console.log('✅ Selected first destination token:', destTokens[0]);
+      }
+    } else {
+      setSelectedPool(null);
+      setDestinationTokens([]);
+      setSelectedDestinationMint(null);
+      console.log('⚠️ No pools found for this token');
+    }
+  };
+
+  // Handle destination token selection for swap
+  const handleDestinationTokenSelect = (mint) => {
+    setSelectedDestinationMint(mint);
+    
+    // Find the pool that matches this destination token
+    const destToken = destinationTokens.find(t => t.mint === mint);
+    if (destToken && destToken.pool) {
+      setSelectedPool(destToken.pool);
+      console.log('✅ Updated selected pool:', destToken.pool);
+    }
+    
+    setShowDestinationTokenModal(false);
+  };
+
+  // Perform swap operation
+  const performSwap = async () => {
+    try {
+      clearError();
+      setLoading(true);
+      setCurrentStep('processing');
+
+      console.log('🔄 Performing swap with details:');
+      console.log({
+        operationType: 'swap',
+        fromToken: {
+          mint: selectedToken?.mint,
+          symbol: selectedToken?.symbol,
+          amount: clampedAmount,
+          chain: selectedToken?.chain
+        },
+        toToken: {
+          mint: selectedDestinationMint,
+          symbol: destinationTokens.find(t => t.mint === selectedDestinationMint)?.symbol
+        },
+        pool: {
+          address: selectedPool?.poolAddress,
+          type: selectedPool?.poolType,
+          reserveA: selectedPool?.reserveA,
+          reserveB: selectedPool?.reserveB,
+          fee: selectedPool?.feeBps
+        },
+        estimatedReceived: estimatedReceived,
+        walletAddress: walletAddress
+      });
+
+      // Get Gorbchain RPC connection
+      
+      const connection = new Connection(networks[0].rpcUrl, {
+        wsEndpoint : networks[0].wsUrl,
+        commitment: 'confirmed'
+      });
+
+      // Get keypair from wallet store
+      const keypair = getKeypair();
+      if (!keypair) {
+        throw new Error('Please unlock your wallet first');
+      }
+
+      // Create Solana-compatible keypair
+      const solanaKeypair = Keypair.fromSecretKey(new Uint8Array(keypair.secretKey));
+
+      console.log("Wallet Address => ",solanaKeypair.publicKey.toBase58())
+      
+      // Create wallet adapter compatible wallet object
+      const wallet = {
+        publicKey: new PublicKey(solanaKeypair.publicKey),
+        async signTransaction(tx) {
+          tx.sign(solanaKeypair);
+          return tx;
+        },
+      };
+
+      // Get destination token info
+      const destinationToken = destinationTokens.find(t => t.mint === selectedDestinationMint);
+      if (!destinationToken) {
+        throw new Error('Destination token not found');
+      }
+
+      // Prepare token objects for swap
+      const fromToken = {
+        mint: selectedToken.mint,
+        symbol: selectedToken.symbol,
+        decimals: selectedToken.decimals
+      };
+
+      const toToken = {
+        mint: destinationToken.mint,
+        symbol: destinationToken.symbol,
+        decimals: destinationToken.decimals
+      };
+
+      // Execute swap
+      const swapResult = await universalSwap(
+        clampedAmount,
+        fromToken,
+        toToken,
+        wallet,
+        connection
+      );
+
+      if (!swapResult.success) {
+        throw new Error(swapResult.error || 'Swap failed');
+      }
+
+      // Set success result
+      setResult({
+        success: true,
+        signature: swapResult.signature,
+        amount: clampedAmount,
+        token: selectedToken.symbol,
+        destinationToken: destinationToken.symbol,
+        operationType: 'swap'
+      });
+
+      setCurrentStep('success');
+      
+      // Show success toast with explorer link
+      toast.success(
+        <div className="flex flex-col gap-1">
+          <div className="font-semibold">Swap Successful!</div>
+          <div className="text-xs">
+            Swapped {clampedAmount} {selectedToken.symbol} → {destinationToken.symbol}
+          </div>
+          <a
+            href={`https://gorbscan.com/transactions?search=${swapResult.signature}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#00DFD8] hover:opacity-80 underline text-xs"
+          >
+            View on Gorbscan
+          </a>
+        </div>,
+        { duration: 6000 }
+      );
+
+    } catch (err) {
+      console.error('Swap failed:', err);
+      setResult({ success: false, error: err.message, operationType: 'swap' });
+      setCurrentStep('error');
+      toast.error(err?.message || 'Swap failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Bridge execution
   const executeBridge = async () => {
     try {
@@ -328,7 +613,10 @@ function TradePage() {
         throw new Error('Please unlock your wallet first');
       }
 
+
       const solanaKeypair = Keypair.fromSecretKey(new Uint8Array(keypair.secretKey));
+
+
       const wallet = {
         publicKey: new PublicKey(solanaKeypair.publicKey),
         async signTransaction(tx) {
@@ -385,12 +673,30 @@ function TradePage() {
       return;
     }
 
-    // Check if bridging from Gorbchain (not yet implemented)
-    if (selectedToken?.chain === 'gorbchain') {
-      toast.error('Bridging from Gorbchain to Solana is coming soon!');
+    // Handle swap operation
+    if (operationType === 'swap') {
+      if (!selectedPool) {
+        toast.error('No pool available for this token pair');
+        return;
+      }
+      
+      if (!selectedDestinationMint) {
+        toast.error('Please select a destination token');
+        return;
+      }
+
+      // Check if wallet is unlocked for swap
+      if (!isWalletUnlocked()) {
+        setShowUnlockPrompt(true);
+        return;
+      }
+
+      // Execute swap directly
+      await performSwap();
       return;
     }
 
+    // Handle bridge operation
     if (!isWalletUnlocked()) {
       setShowUnlockPrompt(true);
       return;
@@ -405,7 +711,14 @@ function TradePage() {
 
   const handleUnlock = async () => {
     setShowUnlockPrompt(false);
-    setCurrentStep('confirmation');
+    
+    // If it's a swap operation, execute swap directly
+    if (operationType === 'swap') {
+      await performSwap();
+    } else {
+      // For bridge, go to confirmation step
+      setCurrentStep('confirmation');
+    }
   };
 
   const handleUnlockCancel = () => {
@@ -521,6 +834,57 @@ function TradePage() {
     );
   };
 
+  // Destination Token Selection Modal (for swap)
+  const DestinationTokenModal = () => {
+    if (!showDestinationTokenModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-zinc-800 border border-zinc-600 rounded-xl w-full max-w-sm max-h-[70vh] overflow-hidden shadow-xl">
+          <div className="flex items-center justify-between p-4 border-b border-zinc-700">
+            <h3 className="text-white font-bold text-base">Select Destination Token</h3>
+            <button
+              onClick={() => setShowDestinationTokenModal(false)}
+              className="text-zinc-400 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="overflow-y-auto max-h-80 p-2">
+            {destinationTokens.map((token, index) => (
+              <button
+                key={`${token.mint}-${index}`}
+                onClick={() => handleDestinationTokenSelect(token.mint)}
+                className={`w-full flex items-center gap-3 p-3 hover:bg-zinc-700 transition-colors rounded-lg mb-1 ${
+                  token.mint === selectedDestinationMint ? 'bg-zinc-700/50 border border-[#00DFD8]/30' : ''
+                }`}
+              >
+                <TokenIcon tokenSymbol={token.symbol} logo={token.logo} size="w-10 h-10" />
+                <div className="flex flex-col items-start flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">{token.symbol}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
+                      Gorbchain
+                    </span>
+                  </div>
+                  <span className="text-zinc-400 text-sm">{token.name}</span>
+                </div>
+                <div className="text-right text-xs text-zinc-500">
+                  Pool {index + 1}
+                </div>
+              </button>
+            ))}
+
+            {destinationTokens.length === 0 && (
+              <div className="p-4 text-center text-sm text-zinc-500">No pools available for this token</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Form Step
   const renderForm = () => (
     <>
@@ -622,13 +986,13 @@ function TradePage() {
       <div className="bg-zinc-800 border border-zinc-600 rounded-xl p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <label className="text-sm font-medium text-zinc-300">You receive</label>
-          <span className="text-xs text-zinc-500">{bridgeDirection.to}</span>
+          <span className="text-xs text-zinc-500">{operationType === 'swap' ? 'Gorbchain' : bridgeDirection.to}</span>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <div className="text-2xl font-bold text-white flex items-center min-h-[40px]">
-              {isLoadingPrice ? (
+              {isLoadingPrice || isLoadingPools ? (
                 <Loader2 size={20} className="animate-spin text-zinc-400" />
               ) : estimatedReceived > 0 ? (
                 estimatedReceived.toFixed(4)
@@ -641,24 +1005,53 @@ function TradePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2">
-            <TokenIcon 
-              tokenSymbol={destinationToken.symbol} 
-              logo={tokenService.getDefaultIcon(destinationToken.symbol)} 
-              size="w-6 h-6" 
-            />
-            <div className="flex flex-col items-start">
-              <div className="flex items-center gap-1">
-                <span className="text-white font-semibold text-sm">
-                  {destinationToken.symbol}
-                </span>
-                {destinationToken.isWrapped && (
-                  <span className="text-[9px] text-cyan-400 uppercase">wrapped</span>
-                )}
+          {operationType === 'swap' ? (
+            <button
+              onClick={() => setShowDestinationTokenModal(true)}
+              disabled={destinationTokens.length === 0}
+              className="flex items-center gap-2 bg-zinc-700 border border-zinc-600 hover:border-[#00DFD8] rounded-lg px-3 py-2 transition-colors disabled:opacity-50"
+            >
+              {destinationTokens.length === 0 ? (
+                <span className="text-zinc-400 text-sm">No pools available</span>
+              ) : (
+                <>
+                  <TokenIcon 
+                    tokenSymbol={destinationTokens.find(t => t.mint === selectedDestinationMint)?.symbol || 'TOKEN'} 
+                    logo={destinationTokens.find(t => t.mint === selectedDestinationMint)?.logo} 
+                    size="w-6 h-6" 
+                  />
+                  <div className="flex flex-col items-start">
+                    <span className="text-white font-semibold text-sm">
+                      {destinationTokens.find(t => t.mint === selectedDestinationMint)?.symbol || 'Select'}
+                    </span>
+                    <span className="text-zinc-400 text-xs">
+                      {destinationTokens.length} pool{destinationTokens.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <ChevronDown size={14} className="text-zinc-400" />
+                </>
+              )}
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2">
+              <TokenIcon 
+                tokenSymbol={destinationToken.symbol} 
+                logo={tokenService.getDefaultIcon(destinationToken.symbol)} 
+                size="w-6 h-6" 
+              />
+              <div className="flex flex-col items-start">
+                <div className="flex items-center gap-1">
+                  <span className="text-white font-semibold text-sm">
+                    {destinationToken.symbol}
+                  </span>
+                  {destinationToken.isWrapped && (
+                    <span className="text-[9px] text-cyan-400 uppercase">wrapped</span>
+                  )}
+                </div>
+                <span className="text-zinc-400 text-xs">{destinationToken.name}</span>
               </div>
-              <span className="text-zinc-400 text-xs">{destinationToken.name}</span>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -684,19 +1077,21 @@ function TradePage() {
         </div>
       </div>
 
-      {/* Recipient */}
-      <div className="bg-zinc-800 border border-zinc-600 rounded-xl p-4 mb-4">
-        <label className="block text-sm font-medium text-zinc-300 mb-2">
-          Recipient ({bridgeDirection.to})
-        </label>
-        <input
-          type="text"
-          value={destinationAddress}
-          onChange={(e) => setDestinationAddress(e.target.value)}
-          placeholder="Enter recipient address"
-          className="w-full bg-zinc-700 border border-zinc-600 text-white p-2.5 rounded-lg text-sm placeholder-zinc-400 focus:outline-none focus:border-[#00DFD8]"
-        />
-      </div>
+      {/* Recipient - Only show for bridge operations */}
+      {operationType === 'bridge' && (
+        <div className="bg-zinc-800 border border-zinc-600 rounded-xl p-4 mb-4">
+          <label className="block text-sm font-medium text-zinc-300 mb-2">
+            Recipient ({bridgeDirection.to})
+          </label>
+          <input
+            type="text"
+            value={destinationAddress}
+            onChange={(e) => setDestinationAddress(e.target.value)}
+            placeholder="Enter recipient address"
+            className="w-full bg-zinc-700 border border-zinc-600 text-white p-2.5 rounded-lg text-sm placeholder-zinc-400 focus:outline-none focus:border-[#00DFD8]"
+          />
+        </div>
+      )}
 
       {/* Submit Button */}
       <button
@@ -713,6 +1108,8 @@ function TradePage() {
           'Enter Amount'
         ) : parsedAmount > maxAmount ? (
           'Insufficient Balance'
+        ) : operationType === 'swap' ? (
+          'Swap'
         ) : (
           'Bridge'
         )}
@@ -720,6 +1117,11 @@ function TradePage() {
 
       {/* Token Modal */}
       <TokenModal />
+      
+      {/* Destination Token Modal for Swap */}
+      {operationType === 'swap' && (
+        <DestinationTokenModal />
+      )}
     </>
   );
 
@@ -785,7 +1187,9 @@ function TradePage() {
   const renderProcessing = () => (
     <div className="bg-zinc-800 border border-zinc-600 rounded-xl p-8 text-center">
       <Loader2 className="w-12 h-12 text-[#00DFD8] animate-spin mx-auto mb-4" />
-      <h2 className="text-xl font-bold text-white mb-2">Processing Bridge</h2>
+      <h2 className="text-xl font-bold text-white mb-2">
+        {operationType === 'swap' ? 'Processing Swap' : 'Processing Bridge'}
+      </h2>
       <p className="text-zinc-400 text-sm">Your transaction is being processed...</p>
     </div>
   );
@@ -794,19 +1198,28 @@ function TradePage() {
   const renderSuccess = () => (
     <div className="bg-zinc-800 border border-zinc-600 rounded-xl p-8 text-center">
       <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
-      <h2 className="text-xl font-bold text-white mb-2">Bridge Successful!</h2>
+      <h2 className="text-xl font-bold text-white mb-2">
+        {result?.operationType === 'swap' ? 'Swap Successful!' : 'Bridge Successful!'}
+      </h2>
       <p className="text-zinc-400 text-sm mb-4">
-        Sent {result?.amount} {result?.token} to {bridgeDirection.to}
+        {result?.operationType === 'swap' ? (
+          <>Swapped {result?.amount} {result?.token} → {result?.destinationToken}</>
+        ) : (
+          <>Sent {result?.amount} {result?.token} to {bridgeDirection.to}</>
+        )}
       </p>
 
       {result?.signature && (
         <a
-          href={`https://solscan.io/tx/${result.signature}`}
+          href={result?.operationType === 'swap' 
+            ? `https://gorbscan.com/transactions?search=${result.signature}`
+            : `https://solscan.io/tx/${result.signature}`
+          }
           target="_blank"
           rel="noopener noreferrer"
           className="text-[#00DFD8] hover:opacity-80 text-sm underline mb-4 block"
         >
-          View on Solscan
+          View on {result?.operationType === 'swap' ? 'Gorbscan' : 'Solscan'}
         </a>
       )}
 
@@ -814,7 +1227,7 @@ function TradePage() {
         onClick={resetForm}
         className="w-full bg-gradient-to-r from-[#00DFD8] to-[#6A0DAD] hover:opacity-90 text-white py-3 rounded-xl font-semibold transition-opacity shadow-lg"
       >
-        Bridge Again
+        {result?.operationType === 'swap' ? 'Swap Again' : 'Bridge Again'}
       </button>
     </div>
   );
@@ -823,7 +1236,9 @@ function TradePage() {
   const renderError = () => (
     <div className="bg-zinc-800 border border-zinc-600 rounded-xl p-8 text-center">
       <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-      <h2 className="text-xl font-bold text-white mb-2">Bridge Failed</h2>
+      <h2 className="text-xl font-bold text-white mb-2">
+        {result?.operationType === 'swap' ? 'Swap Failed' : 'Bridge Failed'}
+      </h2>
       <p className="text-zinc-400 text-sm mb-2">There was an error processing your transaction</p>
       {result?.error && <p className="text-red-400 text-xs mb-4">{result.error}</p>}
 

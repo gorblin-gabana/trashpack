@@ -343,33 +343,57 @@ export const useWalletStore = create((set, get) => ({
 
       // Validate private key length
       if (privateKeyBytes.length === 64) {
-        // This is likely a full secret key (32 bytes private + 32 bytes public)
-        // Use the first 32 bytes as the seed
-        privateKeyBytes = privateKeyBytes.slice(0, 32);
-      } else if (privateKeyBytes.length !== 32) {
+        // This is a full secret key (32 bytes seed + 32 bytes public key)
+        // Use it directly with fromSecretKey
+        const nacl = await import('tweetnacl');
+        const bs58 = await import('bs58');
+        
+        // Extract the public key from the secret key (last 32 bytes)
+        const publicKey = privateKeyBytes.slice(32, 64);
+        const address = bs58.default.encode(publicKey);
+        
+        // Create a keypair object directly from the secret key
+        const keypair = {
+          publicKey: publicKey,
+          secretKey: privateKeyBytes
+        };
+
+        // Return a keypair object that's compatible with existing transaction code
+        const compatibleKeypair = {
+          address: address,
+          secretKey: keypair.secretKey, // Full 64 bytes
+          publicKey: keypair.publicKey,
+          // Store the raw nacl keypair for direct signing if needed
+          _naclKeypair: keypair,
+          // Mark this as imported so we know it's not derived from the main mnemonic
+          isImported: true
+        };
+
+        return compatibleKeypair;
+      } else if (privateKeyBytes.length === 32) {
+        // This is a 32-byte seed, generate keypair from seed
+        const nacl = await import('tweetnacl');
+        const keypair = nacl.default.sign.keyPair.fromSeed(privateKeyBytes);
+
+        // Convert public key to base58 address
+        const bs58 = await import('bs58');
+        const address = bs58.default.encode(keypair.publicKey);
+
+        // Return a keypair object that's compatible with existing transaction code
+        const compatibleKeypair = {
+          address: address,
+          secretKey: keypair.secretKey, // 64 bytes from tweetnacl
+          publicKey: keypair.publicKey,
+          // Store the raw nacl keypair for direct signing if needed
+          _naclKeypair: keypair,
+          // Mark this as imported so we know it's not derived from the main mnemonic
+          isImported: true
+        };
+
+        return compatibleKeypair;
+      } else {
         throw new Error('Invalid private key length. Expected 32 or 64 bytes.');
       }
-
-      // Use tweetnacl to create the Ed25519 keypair from the private key seed
-      const nacl = await import('tweetnacl');
-      const keypair = nacl.default.sign.keyPair.fromSeed(privateKeyBytes);
-
-      // Convert public key to base58 address
-      const bs58 = await import('bs58');
-      const address = bs58.default.encode(keypair.publicKey);
-
-      // Return a keypair object that's compatible with existing transaction code
-      const compatibleKeypair = {
-        address: address,
-        secretKey: keypair.secretKey, // 64 bytes from tweetnacl
-        publicKey: keypair.publicKey,
-        // Store the raw nacl keypair for direct signing if needed
-        _naclKeypair: keypair,
-        // Mark this as imported so we know it's not derived from the main mnemonic
-        isImported: true
-      };
-
-      return compatibleKeypair;
     } catch (err) {
       console.error('Error creating keypair from private key:', err);
       throw new Error('Failed to create keypair from private key: ' + err.message);

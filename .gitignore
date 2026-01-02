@@ -47,3 +47,6 @@ Icon?
 
 # Others
 *.log
+
+# remove .md
+*.md
