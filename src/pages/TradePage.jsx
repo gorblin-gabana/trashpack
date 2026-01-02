@@ -20,10 +20,11 @@ function TradePage() {
   // Core state
   const [currentStep, setCurrentStep] = useState('form');
 
-  // Unified portfolio state (Moralis - real Solana balances)
+  // Unified portfolio state (Solana + Gorbchain tokens)
   const [portfolioTokens, setPortfolioTokens] = useState([]);
   const [selectedMint, setSelectedMint] = useState(null);
   const [isLoadingPortfolio, setIsLoadingPortfolio] = useState(false);
+  const [isLoadingGorbTokens, setIsLoadingGorbTokens] = useState(false);
 
   // Amount and destination
   const [amount, setAmount] = useState('');
@@ -42,10 +43,6 @@ function TradePage() {
   const [showUnlockPrompt, setShowUnlockPrompt] = useState(false);
   const [imageErrors, setImageErrors] = useState(new Set());
 
-  // Bridge pairs for fee estimation
-  const bridgeFee = 0.003;
-  const estimatedTime = '~5 min';
-
   // Initialize destination address
   useEffect(() => {
     if (walletAddress && !destinationAddress) {
@@ -58,61 +55,121 @@ function TradePage() {
     loadPortfolio();
   }, [walletAddress]);
 
-  // Load Solana portfolio from Moralis (used by both modes)
+  // Load both Solana and Gorbchain portfolios
   const loadPortfolio = async () => {
     if (!walletAddress) return;
 
+    setIsLoadingPortfolio(true);
+    const allTokens = [];
+
     try {
-      setIsLoadingPortfolio(true);
+      // Load Solana tokens
       const portfolio = await tokenService.getSolanaPortfolio(walletAddress);
 
-      if (!portfolio) {
-        toast.error('Failed to load Solana portfolio');
-        return;
+      if (portfolio) {
+        const nativeSol = Number(portfolio.nativeBalance?.solana || 0);
+
+        // Native SOL
+        allTokens.push({
+          mint: 'So11111111111111111111111111111111111111111',
+          symbol: 'SOL',
+          name: 'Solana',
+          decimals: 9,
+          amount: nativeSol,
+          logo: tokenService.getDefaultIcon('SOL'),
+          isNative: true,
+          chain: 'solana',
+          chainName: 'Solana',
+        });
+
+        // SPL tokens with balance
+        if (Array.isArray(portfolio.tokens)) {
+          for (const t of portfolio.tokens) {
+            const tokenBalance = Number(t.amount || 0);
+            if (tokenBalance <= 0) continue;
+
+            allTokens.push({
+              mint: t.mint,
+              symbol: t.symbol || 'TOKEN',
+              name: t.name || t.symbol || t.mint,
+              decimals: t.decimals || 6,
+              amount: tokenBalance,
+              logo: t.logo,
+              isNative: false,
+              chain: 'solana',
+              chainName: 'Solana',
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load Solana portfolio:', err);
+    }
+
+    try {
+      // Load Gorbchain tokens
+      setIsLoadingGorbTokens(true);
+      
+      // Get native GORB balance from store
+      const storeState = useWalletStore.getState();
+      const gorbBalance = storeState.balance;
+      
+      if (gorbBalance !== null && gorbBalance !== undefined) {
+        allTokens.push({
+          mint: 'native-gorb',
+          symbol: 'GORB',
+          name: 'Gorbchain',
+          decimals: 9,
+          amount: gorbBalance,
+          logo: tokenService.getDefaultIcon('GORB'),
+          isNative: true,
+          chain: 'gorbchain',
+          chainName: 'Gorbchain',
+        });
       }
 
-      const nativeSol = Number(portfolio.nativeBalance?.solana || 0);
-      const tokens = [];
-
-      // Native SOL
-      tokens.push({
-        mint: 'So11111111111111111111111111111111111111111',
-        symbol: 'SOL',
-        name: 'Solana',
-        decimals: 9,
-        amount: nativeSol,
-        logo: tokenService.getDefaultIcon('SOL'),
-        isNative: true,
-      });
-
-      // SPL tokens with balance
-      if (Array.isArray(portfolio.tokens)) {
-        for (const t of portfolio.tokens) {
-          const tokenBalance = Number(t.amount || 0);
+      // Get Gorbchain SPL tokens using gorbscanService directly
+      const gorbTokens = await storeState.fetchTokens(walletAddress, false);
+      if (Array.isArray(gorbTokens)) {
+        for (const token of gorbTokens) {
+          const tokenBalance = parseFloat(token.formatted_balance || token.balance || 0);
           if (tokenBalance <= 0) continue;
 
-          tokens.push({
-            mint: t.mint,
-            symbol: t.symbol || 'TOKEN',
-            name: t.name || t.symbol || t.mint,
-            decimals: t.decimals || 6,
+          allTokens.push({
+            mint: token.mintAddress || token.mint,
+            symbol: token.symbol || 'TOKEN',
+            name: token.name || token.symbol || 'Unknown Token',
+            decimals: token.decimals || 9,
             amount: tokenBalance,
-            logo: t.logo,
+            logo: token.image || token.logo,
             isNative: false,
+            chain: 'gorbchain',
+            chainName: 'Gorbchain',
           });
         }
       }
-
-      setPortfolioTokens(tokens);
-      if (tokens.length > 0 && !selectedMint) {
-        setSelectedMint(tokens[0].mint);
-      }
     } catch (err) {
-      console.error('Failed to load portfolio:', err);
-      toast.error('Unable to load Solana tokens');
+      console.error('Failed to load Gorbchain tokens:', err);
     } finally {
-      setIsLoadingPortfolio(false);
+      setIsLoadingGorbTokens(false);
     }
+
+    // Sort tokens: Solana first, then Gorbchain, then by balance
+    allTokens.sort((a, b) => {
+      if (a.chain !== b.chain) {
+        return a.chain === 'solana' ? -1 : 1;
+      }
+      if (a.isNative !== b.isNative) {
+        return a.isNative ? -1 : 1;
+      }
+      return b.amount - a.amount;
+    });
+
+    setPortfolioTokens(allTokens);
+    if (allTokens.length > 0 && !selectedMint) {
+      setSelectedMint(allTokens[0].mint);
+    }
+    setIsLoadingPortfolio(false);
   };
 
   // Selected token
@@ -120,6 +177,18 @@ function TradePage() {
     () => portfolioTokens.find((t) => t.mint === selectedMint) || null,
     [portfolioTokens, selectedMint]
   );
+
+  // Bridge pairs for fee estimation
+  const bridgeFee = 0.003;
+  const estimatedTime = '~5 min';
+
+  // Determine bridge direction based on selected token
+  const bridgeDirection = useMemo(() => {
+    if (!selectedToken) return { from: 'Solana', to: 'Gorbchain' };
+    return selectedToken.chain === 'solana' 
+      ? { from: 'Solana', to: 'Gorbchain' }
+      : { from: 'Gorbchain', to: 'Solana' };
+  }, [selectedToken]);
 
   // Load token price
   useEffect(() => {
@@ -160,7 +229,7 @@ function TradePage() {
   const formatUsd = (value) =>
     `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const canSubmit = !!selectedToken && clampedAmount > 0 && destinationAddress.trim().length > 0 && !isLoadingPortfolio && !isLoadingPrice;
+  const canSubmit = !!selectedToken && clampedAmount > 0 && destinationAddress.trim().length > 0 && !isLoadingPortfolio && !isLoadingPrice && !isLoadingGorbTokens;
 
   // Handlers
   const handleAmountChange = (value) => {
@@ -264,6 +333,12 @@ function TradePage() {
       return;
     }
 
+    // Check if bridging from Gorbchain (not yet implemented)
+    if (selectedToken?.chain === 'gorbchain') {
+      toast.error('Bridging from Gorbchain to Solana is coming soon!');
+      return;
+    }
+
     if (!isWalletUnlocked()) {
       setShowUnlockPrompt(true);
       return;
@@ -349,7 +424,7 @@ function TradePage() {
           <div className="overflow-y-auto max-h-80 p-2">
             {portfolioTokens.map((token) => (
               <button
-                key={token.mint}
+                key={`${token.chain}-${token.mint}`}
                 onClick={() => handleTokenSelect(token.mint)}
                 className={`w-full flex items-center gap-3 p-3 hover:bg-zinc-700 transition-colors rounded-lg mb-1 ${
                   token.mint === selectedMint ? 'bg-zinc-700/50 border border-[#00DFD8]/30' : ''
@@ -357,10 +432,17 @@ function TradePage() {
               >
                 <TokenIcon tokenSymbol={token.symbol} logo={token.logo} size="w-10 h-10" />
                 <div className="flex flex-col items-start flex-1">
-                  <span className="text-white font-semibold">
-                    {token.symbol}
-                    {token.isNative && <span className="ml-2 text-[10px] text-[#00DFD8] uppercase">native</span>}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">{token.symbol}</span>
+                    {token.isNative && <span className="text-[10px] text-[#00DFD8] uppercase">native</span>}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                      token.chain === 'solana' 
+                        ? 'bg-purple-500/20 text-purple-300' 
+                        : 'bg-cyan-500/20 text-cyan-300'
+                    }`}>
+                      {token.chainName}
+                    </span>
+                  </div>
                   <span className="text-zinc-400 text-sm">{token.name}</span>
                 </div>
                 <div className="text-right text-sm text-zinc-400">
@@ -369,13 +451,14 @@ function TradePage() {
               </button>
             ))}
 
-            {portfolioTokens.length === 0 && !isLoadingPortfolio && (
+            {portfolioTokens.length === 0 && !isLoadingPortfolio && !isLoadingGorbTokens && (
               <div className="p-4 text-center text-sm text-zinc-500">No tokens found in wallet</div>
             )}
 
-            {isLoadingPortfolio && (
+            {(isLoadingPortfolio || isLoadingGorbTokens) && (
               <div className="p-4 text-center">
                 <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#00DFD8]" />
+                <p className="text-xs text-zinc-500 mt-2">Loading tokens...</p>
               </div>
             )}
           </div>
@@ -436,17 +519,17 @@ function TradePage() {
 
           <button
             onClick={() => setShowTokenModal(true)}
-            disabled={isLoadingPortfolio}
+            disabled={isLoadingPortfolio || isLoadingGorbTokens}
             className="flex items-center gap-2 bg-zinc-700 border border-zinc-600 hover:border-[#00DFD8] rounded-lg px-3 py-2 transition-colors disabled:opacity-50"
           >
-            {isLoadingPortfolio ? (
+            {(isLoadingPortfolio || isLoadingGorbTokens) ? (
               <Loader2 size={16} className="animate-spin text-zinc-400" />
             ) : (
               <>
                 <TokenIcon tokenSymbol={selectedToken?.symbol || 'SOL'} logo={selectedToken?.logo} size="w-6 h-6" />
                 <div className="flex flex-col items-start">
                   <span className="text-white font-semibold text-sm">{selectedToken?.symbol || 'SOL'}</span>
-                  <span className="text-zinc-400 text-xs">Solana</span>
+                  <span className="text-zinc-400 text-xs">{selectedToken?.chainName || 'Solana'}</span>
                 </div>
                 <ChevronDown size={14} className="text-zinc-400" />
               </>
@@ -485,7 +568,7 @@ function TradePage() {
       <div className="bg-zinc-800 border border-zinc-600 rounded-xl p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <label className="text-sm font-medium text-zinc-300">You receive</label>
-          <span className="text-xs text-zinc-500">Gorbchain</span>
+          <span className="text-xs text-zinc-500">{bridgeDirection.to}</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -505,10 +588,16 @@ function TradePage() {
           </div>
 
           <div className="flex items-center gap-2 bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2">
-            <TokenIcon tokenSymbol="GORB" logo={tokenService.getDefaultIcon('GORB')} size="w-6 h-6" />
+            <TokenIcon 
+              tokenSymbol={bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB'} 
+              logo={tokenService.getDefaultIcon(bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB')} 
+              size="w-6 h-6" 
+            />
             <div className="flex flex-col items-start">
-              <span className="text-white font-semibold text-sm">GORB</span>
-              <span className="text-zinc-400 text-xs">Gorbchain</span>
+              <span className="text-white font-semibold text-sm">
+                {bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB'}
+              </span>
+              <span className="text-zinc-400 text-xs">{bridgeDirection.to}</span>
             </div>
           </div>
         </div>
@@ -520,9 +609,9 @@ function TradePage() {
           <div className="flex justify-between items-center">
             <span className="text-zinc-500">Route</span>
             <div className="flex items-center gap-2 text-zinc-300 font-medium">
-              <span>Solana</span>
+              <span>{bridgeDirection.from}</span>
               <span className="text-[#00DFD8]">&rarr;</span>
-              <span>Gorbchain</span>
+              <span>{bridgeDirection.to}</span>
             </div>
           </div>
           <div className="flex justify-between items-center">
@@ -538,7 +627,9 @@ function TradePage() {
 
       {/* Recipient */}
       <div className="bg-zinc-800 border border-zinc-600 rounded-xl p-4 mb-4">
-        <label className="block text-sm font-medium text-zinc-300 mb-2">Recipient (Gorbchain)</label>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
+          Recipient ({bridgeDirection.to})
+        </label>
         <input
           type="text"
           value={destinationAddress}
@@ -594,8 +685,14 @@ function TradePage() {
         <div className="flex items-center justify-between p-4 bg-zinc-700 rounded-lg">
           <span className="text-zinc-400 text-sm">You Receive</span>
           <div className="flex items-center gap-2">
-            <TokenIcon tokenSymbol="GORB" logo={tokenService.getDefaultIcon('GORB')} size="w-5 h-5" />
-            <span className="text-[#00DFD8] font-semibold">~{estimatedReceived.toFixed(4)} GORB</span>
+            <TokenIcon 
+              tokenSymbol={bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB'} 
+              logo={tokenService.getDefaultIcon(bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB')} 
+              size="w-5 h-5" 
+            />
+            <span className="text-[#00DFD8] font-semibold">
+              ~{estimatedReceived.toFixed(4)} {bridgeDirection.to === 'Solana' ? 'SOL' : 'GORB'}
+            </span>
           </div>
         </div>
 
@@ -640,7 +737,7 @@ function TradePage() {
       <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
       <h2 className="text-xl font-bold text-white mb-2">Bridge Successful!</h2>
       <p className="text-zinc-400 text-sm mb-4">
-        Sent {result?.amount} {result?.token} to Gorbchain
+        Sent {result?.amount} {result?.token} to {bridgeDirection.to}
       </p>
 
       {result?.signature && (

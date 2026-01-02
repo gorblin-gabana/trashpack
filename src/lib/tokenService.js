@@ -237,7 +237,7 @@ class TokenService {
       'USDC': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
       'USDT': 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg'
     };
-    return iconMap[tokenSymbol] || 'https://via.placeholder.com/32/666666/ffffff?text=' + tokenSymbol.charAt(0);
+    return iconMap[tokenSymbol] || 'https://via.placeholder.com/32/666666/ffffff?text=' + tokenSymbol?.charAt(0);
   }
 
   // Format token icon URL (direct return since we're using full URLs now)
