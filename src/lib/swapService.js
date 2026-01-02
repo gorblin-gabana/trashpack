@@ -18,19 +18,23 @@ const INSTRUCTION_DATA_SIZES = {
 const SEEDS = {
   POOL: "pool",
   VAULT: "vault",
-  MINT: "mint",
+  NATIVE_SOL_POOL: "native_sol_pool",
+  NATIVE_SOL_VAULT: "native_sol_vault",
 };
 
 // Helper functions
 function isNativeSOL(tokenMint) {
+  if (typeof tokenMint === 'string') {
+    return tokenMint === NATIVE_SOL_MINT.toString() || tokenMint === 'native-gorb';
+  }
   return tokenMint.equals(NATIVE_SOL_MINT);
 }
 
-function derivePoolPDA(tokenA, tokenB) {
-  if (isNativeSOL(tokenA) || isNativeSOL(tokenB)) {
+function derivePoolPDA(tokenA, tokenB, isNativeSOLPool = false) {
+  if (isNativeSOLPool) {
     const nonSOLToken = isNativeSOL(tokenA) ? tokenB : tokenA;
     return PublicKey.findProgramAddressSync(
-      [Buffer.from("native_sol_pool"), nonSOLToken.toBuffer()],
+      [Buffer.from(SEEDS.NATIVE_SOL_POOL), nonSOLToken.toBuffer()],
       AMM_PROGRAM_ID
     );
   }
@@ -42,14 +46,17 @@ function derivePoolPDA(tokenA, tokenB) {
 
 function deriveVaultPDA(poolPDA, tokenMint, isNativeSOLPool = false) {
   if (isNativeSOL(tokenMint)) {
+    // For native SOL, the vault is the pool itself
     return [poolPDA, 0];
   }
   if (isNativeSOLPool) {
+    // For tokens in a native SOL pool
     return PublicKey.findProgramAddressSync(
-      [Buffer.from("native_sol_vault"), poolPDA.toBuffer(), tokenMint.toBuffer()],
+      [Buffer.from(SEEDS.NATIVE_SOL_VAULT), poolPDA.toBuffer(), tokenMint.toBuffer()],
       AMM_PROGRAM_ID
     );
   }
+  // For regular token-to-token pools
   return PublicKey.findProgramAddressSync(
     [Buffer.from(SEEDS.VAULT), poolPDA.toBuffer(), tokenMint.toBuffer()],
     AMM_PROGRAM_ID
@@ -88,7 +95,7 @@ async function findPoolConfiguration(tokenX, tokenY, connection) {
   if (isSOLPool) {
     const solToken = isNativeSOL(tokenX) ? tokenX : tokenY;
     const otherToken = isNativeSOL(tokenX) ? tokenY : tokenX;
-    const [poolPDA] = derivePoolPDA(solToken, otherToken);
+    const [poolPDA] = derivePoolPDA(solToken, otherToken, true);
     
     try {
       const poolInfo = await connection.getAccountInfo(poolPDA);
@@ -97,7 +104,8 @@ async function findPoolConfiguration(tokenX, tokenY, connection) {
           poolPDA,
           tokenA: solToken,
           tokenB: otherToken,
-          directionAtoB: isNativeSOL(tokenX)
+          directionAtoB: isNativeSOL(tokenX),
+          isNativeSOLPool: true
         };
       }
     } catch (error) {
@@ -106,8 +114,8 @@ async function findPoolConfiguration(tokenX, tokenY, connection) {
     throw new Error(`No native SOL pool found for: ${tokenX.toString()} <-> ${tokenY.toString()}`);
   }
 
-  // Try configuration 1
-  const [poolPDA1] = derivePoolPDA(tokenX, tokenY);
+  // Try configuration 1: tokenX as tokenA, tokenY as tokenB
+  const [poolPDA1] = derivePoolPDA(tokenX, tokenY, false);
   try {
     const poolInfo1 = await connection.getAccountInfo(poolPDA1);
     if (poolInfo1) {
@@ -115,15 +123,16 @@ async function findPoolConfiguration(tokenX, tokenY, connection) {
         poolPDA: poolPDA1,
         tokenA: tokenX,
         tokenB: tokenY,
-        directionAtoB: true
+        directionAtoB: true,
+        isNativeSOLPool: false
       };
     }
   } catch (error) {
     console.log("Pool configuration 1 not found");
   }
 
-  // Try configuration 2
-  const [poolPDA2] = derivePoolPDA(tokenY, tokenX);
+  // Try configuration 2: tokenY as tokenA, tokenX as tokenB
+  const [poolPDA2] = derivePoolPDA(tokenY, tokenX, false);
   try {
     const poolInfo2 = await connection.getAccountInfo(poolPDA2);
     if (poolInfo2) {
@@ -131,7 +140,8 @@ async function findPoolConfiguration(tokenX, tokenY, connection) {
         poolPDA: poolPDA2,
         tokenA: tokenY,
         tokenB: tokenX,
-        directionAtoB: false
+        directionAtoB: false,
+        isNativeSOLPool: false
       };
     }
   } catch (error) {
@@ -141,10 +151,12 @@ async function findPoolConfiguration(tokenX, tokenY, connection) {
   throw new Error(`No pool found for token pair: ${tokenX.toString()} <-> ${tokenY.toString()}`);
 }
 
-// Main swap function
-export async function universalSwap(fromTokenAmount, fromToken, toToken, wallet, connection) {
+/**
+ * Swap Token X to Token Y (non-native tokens only)
+ */
+async function swapXToY(fromTokenAmount, fromToken, toToken, wallet, connection) {
   try {
-    console.log("🚀 Starting swap:", {
+    console.log("🚀 Starting Token → Token swap:", {
       fromToken: fromToken.symbol,
       toToken: toToken.symbol,
       amount: fromTokenAmount
@@ -154,7 +166,7 @@ export async function universalSwap(fromTokenAmount, fromToken, toToken, wallet,
     const TO_TOKEN_MINT = new PublicKey(toToken.mint);
 
     // Find pool configuration
-    const { poolPDA, tokenA, tokenB, directionAtoB } = await findPoolConfiguration(
+    const { poolPDA, tokenA, tokenB, directionAtoB, isNativeSOLPool } = await findPoolConfiguration(
       FROM_TOKEN_MINT,
       TO_TOKEN_MINT,
       connection
@@ -164,17 +176,15 @@ export async function universalSwap(fromTokenAmount, fromToken, toToken, wallet,
       poolPDA: poolPDA.toString(),
       tokenA: tokenA.toString(),
       tokenB: tokenB.toString(),
-      direction: directionAtoB ? "A to B" : "B to A"
+      direction: directionAtoB ? "A to B" : "B to A",
+      isNativeSOLPool
     });
-
-    // Check if native SOL pool
-    const isNativeSOLPool = tokenA.equals(NATIVE_SOL_MINT) || tokenB.equals(NATIVE_SOL_MINT);
 
     // Derive vaults
     const [vaultA] = deriveVaultPDA(poolPDA, tokenA, isNativeSOLPool);
     const [vaultB] = deriveVaultPDA(poolPDA, tokenB, isNativeSOLPool);
 
-    console.log("📍 Derived addresses:", {
+    console.log("📍 Derived vaults:", {
       vaultA: vaultA.toString(),
       vaultB: vaultB.toString()
     });
@@ -183,11 +193,13 @@ export async function universalSwap(fromTokenAmount, fromToken, toToken, wallet,
     const userFromToken = getUserTokenAccount(FROM_TOKEN_MINT, wallet.publicKey);
     const userToToken = getUserTokenAccount(TO_TOKEN_MINT, wallet.publicKey);
 
+    console.log("👤 User token accounts:", {
+      userFromToken: userFromToken.toString(),
+      userToToken: userToToken.toString()
+    });
+
     // Convert amount to lamports
-    const isFromSOL = isNativeSOL(FROM_TOKEN_MINT);
-    const amountInLamports = isFromSOL
-      ? BigInt(fromTokenAmount * LAMPORTS_PER_SOL)
-      : tokenAmountToLamports(fromTokenAmount, fromToken.decimals);
+    const amountInLamports = tokenAmountToLamports(fromTokenAmount, fromToken.decimals);
 
     console.log("🔄 Swap parameters:", {
       amountIn: fromTokenAmount,
@@ -201,7 +213,7 @@ export async function universalSwap(fromTokenAmount, fromToken, toToken, wallet,
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = wallet.publicKey;
 
-    // Prepare accounts
+    // Prepare accounts (matching Rust program order)
     const accounts = [
       { pubkey: poolPDA, isSigner: false, isWritable: true },
       { pubkey: tokenA, isSigner: false, isWritable: false },
@@ -230,7 +242,7 @@ export async function universalSwap(fromTokenAmount, fromToken, toToken, wallet,
     });
 
     // Sign and send
-    console.log("📤 Sending transaction for signing...");
+    console.log("📤 Sending transaction...");
     const signedTransaction = await wallet.signTransaction(transaction);
     const signature = await connection.sendRawTransaction(signedTransaction.serialize());
 
@@ -238,16 +250,167 @@ export async function universalSwap(fromTokenAmount, fromToken, toToken, wallet,
     const confirmation = await connection.confirmTransaction(signature, 'confirmed');
 
     if (confirmation.value.err) {
-      throw new Error(`Transaction failed: ${confirmation.value.err}`);
+      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
     }
 
-    console.log("✅ Swap completed successfully:", signature);
-    return {
-      success: true,
-      signature
-    };
+    console.log("✅ Token → Token swap completed:", signature);
+    return { success: true, signature };
   } catch (error) {
-    console.error("❌ Error swapping tokens:", error);
+    console.error("❌ Error in Token → Token swap:", error);
+    throw error;
+  }
+}
+
+/**
+ * Swap involving native SOL (either SOL to Token or Token to SOL)
+ */
+async function swapWithNativeSOL(fromTokenAmount, fromToken, toToken, wallet, connection) {
+  try {
+    const isFromSOL = isNativeSOL(fromToken.mint);
+    const isToSOL = isNativeSOL(toToken.mint);
+
+    if (!isFromSOL && !isToSOL) {
+      throw new Error("This function is for native SOL swaps only");
+    }
+
+    console.log("🚀 Starting native SOL swap:", {
+      fromToken: fromToken.symbol,
+      toToken: toToken.symbol,
+      amount: fromTokenAmount,
+      direction: isFromSOL ? "SOL → Token" : "Token → SOL"
+    });
+
+    const FROM_TOKEN_MINT = new PublicKey(fromToken.mint);
+    const TO_TOKEN_MINT = new PublicKey(toToken.mint);
+
+    // Find pool configuration
+    const { poolPDA, tokenA, tokenB, directionAtoB, isNativeSOLPool } = await findPoolConfiguration(
+      FROM_TOKEN_MINT,
+      TO_TOKEN_MINT,
+      connection
+    );
+
+    console.log("✅ Found pool configuration:", {
+      poolPDA: poolPDA.toString(),
+      tokenA: tokenA.toString(),
+      tokenB: tokenB.toString(),
+      direction: directionAtoB ? "A to B" : "B to A",
+      isNativeSOLPool
+    });
+
+    // Derive vaults (handles native SOL automatically)
+    const [vaultA] = deriveVaultPDA(poolPDA, tokenA, isNativeSOLPool);
+    const [vaultB] = deriveVaultPDA(poolPDA, tokenB, isNativeSOLPool);
+
+    console.log("📍 Derived vaults:", {
+      vaultA: vaultA.toString(),
+      vaultB: vaultB.toString()
+    });
+
+    // Get user token accounts (handles native SOL automatically)
+    const userFromToken = getUserTokenAccount(FROM_TOKEN_MINT, wallet.publicKey);
+    const userToToken = getUserTokenAccount(TO_TOKEN_MINT, wallet.publicKey);
+
+    console.log("👤 User token accounts:", {
+      userFromToken: userFromToken.toString(),
+      userToToken: userToToken.toString()
+    });
+
+    // Convert amount to lamports
+    const amountInLamports = isFromSOL
+      ? BigInt(Math.floor(fromTokenAmount * LAMPORTS_PER_SOL))
+      : tokenAmountToLamports(fromTokenAmount, fromToken.decimals);
+
+    console.log("🔄 Native SOL swap parameters:", {
+      amountIn: fromTokenAmount,
+      amountInLamports: amountInLamports.toString(),
+      direction: directionAtoB ? "A to B" : "B to A",
+      isFromSOL,
+      isToSOL
+    });
+
+    // Create transaction
+    const transaction = new Transaction();
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = wallet.publicKey;
+
+    // Prepare accounts (same structure as regular swap)
+    const accounts = [
+      { pubkey: poolPDA, isSigner: false, isWritable: true },
+      { pubkey: tokenA, isSigner: false, isWritable: false },
+      { pubkey: tokenB, isSigner: false, isWritable: false },
+      { pubkey: vaultA, isSigner: false, isWritable: true },
+      { pubkey: vaultB, isSigner: false, isWritable: true },
+      { pubkey: userFromToken, isSigner: false, isWritable: true },
+      { pubkey: userToToken, isSigner: false, isWritable: true },
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+      ...getCommonAccounts(),
+    ];
+
+    // Create instruction data
+    const data = Buffer.alloc(INSTRUCTION_DATA_SIZES.SWAP);
+    data.writeUInt8(INSTRUCTION_DISCRIMINATORS.SWAP, 0);
+    data.writeBigUInt64LE(amountInLamports, 1);
+    data.writeUInt8(directionAtoB ? 1 : 0, 9);
+
+    console.log("📝 Native SOL instruction data:", data.toString('hex'));
+
+    // Add swap instruction
+    transaction.add({
+      keys: accounts,
+      programId: AMM_PROGRAM_ID,
+      data,
+    });
+
+    // Sign and send
+    console.log("📤 Sending transaction...");
+    const signedTransaction = await wallet.signTransaction(transaction);
+    const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+
+    console.log("⏳ Confirming transaction:", signature);
+    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+
+    if (confirmation.value.err) {
+      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+    }
+
+    console.log("✅ Native SOL swap completed:", signature);
+    return { success: true, signature };
+  } catch (error) {
+    console.error("❌ Error in native SOL swap:", error);
+    throw error;
+  }
+}
+
+/**
+ * Universal swap function that automatically detects if native SOL is involved
+ * @param fromTokenAmount - Amount to swap (in token units, not lamports)
+ * @param fromToken - Source token info with { mint, symbol, decimals }
+ * @param toToken - Destination token info with { mint, symbol, decimals }
+ * @param wallet - Wallet object with { publicKey, signTransaction }
+ * @param connection - Solana connection
+ * @returns Promise<{ success: boolean, signature?: string, error?: string }>
+ */
+export async function universalSwap(fromTokenAmount, fromToken, toToken, wallet, connection) {
+  try {
+    const isFromSOL = isNativeSOL(fromToken.mint);
+    const isToSOL = isNativeSOL(toToken.mint);
+
+    console.log("🔍 Swap type detection:", {
+      fromToken: fromToken.symbol,
+      toToken: toToken.symbol,
+      isFromSOL,
+      isToSOL
+    });
+
+    if (isFromSOL || isToSOL) {
+      return await swapWithNativeSOL(fromTokenAmount, fromToken, toToken, wallet, connection);
+    } else {
+      return await swapXToY(fromTokenAmount, fromToken, toToken, wallet, connection);
+    }
+  } catch (error) {
+    console.error("❌ Error in universal swap:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'

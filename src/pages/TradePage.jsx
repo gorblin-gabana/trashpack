@@ -53,6 +53,8 @@ function TradePage() {
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [showUnlockPrompt, setShowUnlockPrompt] = useState(false);
   const [imageErrors, setImageErrors] = useState(new Set());
+  const [tokenSearchQuery, setTokenSearchQuery] = useState('');
+  const [destinationSearchQuery, setDestinationSearchQuery] = useState('');
 
   // Initialize destination address
   useEffect(() => {
@@ -344,6 +346,7 @@ function TradePage() {
     setSelectedMint(mint);
     setAmount('');
     setShowTokenModal(false);
+    setTokenSearchQuery(''); // Clear search when closing
   };
 
   // Fetch pools from Gorbchain API
@@ -463,6 +466,7 @@ function TradePage() {
     }
     
     setShowDestinationTokenModal(false);
+    setDestinationSearchQuery(''); // Clear search when closing
   };
 
   // Perform swap operation
@@ -771,6 +775,30 @@ function TradePage() {
     );
   }
 
+  // Filter tokens based on search query
+  const filteredPortfolioTokens = useMemo(() => {
+    if (!tokenSearchQuery.trim()) return portfolioTokens;
+    
+    const query = tokenSearchQuery.toLowerCase().trim();
+    return portfolioTokens.filter(token => 
+      token.symbol.toLowerCase().includes(query) ||
+      token.name.toLowerCase().includes(query) ||
+      token.mint.toLowerCase().includes(query)
+    );
+  }, [portfolioTokens, tokenSearchQuery]);
+
+  // Filter destination tokens based on search query
+  const filteredDestinationTokens = useMemo(() => {
+    if (!destinationSearchQuery.trim()) return destinationTokens;
+    
+    const query = destinationSearchQuery.toLowerCase().trim();
+    return destinationTokens.filter(token => 
+      token.symbol.toLowerCase().includes(query) ||
+      token.name.toLowerCase().includes(query) ||
+      token.mint.toLowerCase().includes(query)
+    );
+  }, [destinationTokens, destinationSearchQuery]);
+
   // Token Selection Modal
   const TokenModal = () => {
     if (!showTokenModal) return null;
@@ -781,15 +809,30 @@ function TradePage() {
           <div className="flex items-center justify-between p-4 border-b border-zinc-700">
             <h3 className="text-white font-bold text-base">Select Token</h3>
             <button
-              onClick={() => setShowTokenModal(false)}
+              onClick={() => {
+                setShowTokenModal(false);
+                setTokenSearchQuery('');
+              }}
               className="text-zinc-400 hover:text-white transition-colors"
             >
               <X size={20} />
             </button>
           </div>
 
+          {/* Search Input */}
+          <div className="p-3 border-b border-zinc-700">
+            <input
+              type="text"
+              value={tokenSearchQuery}
+              onChange={(e) => setTokenSearchQuery(e.target.value)}
+              placeholder="Search by name, symbol, or address..."
+              className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm p-2.5 rounded-lg placeholder-zinc-400 focus:outline-none focus:border-[#00DFD8]"
+              autoFocus
+            />
+          </div>
+
           <div className="overflow-y-auto max-h-80 p-2">
-            {portfolioTokens.map((token) => (
+            {filteredPortfolioTokens.map((token) => (
               <button
                 key={`${token.chain}-${token.mint}`}
                 onClick={() => handleTokenSelect(token.mint)}
@@ -818,6 +861,12 @@ function TradePage() {
               </button>
             ))}
 
+            {filteredPortfolioTokens.length === 0 && portfolioTokens.length > 0 && (
+              <div className="p-4 text-center text-sm text-zinc-500">
+                No tokens match "{tokenSearchQuery}"
+              </div>
+            )}
+
             {portfolioTokens.length === 0 && !isLoadingPortfolio && !isLoadingGorbTokens && (
               <div className="p-4 text-center text-sm text-zinc-500">No tokens found in wallet</div>
             )}
@@ -844,15 +893,30 @@ function TradePage() {
           <div className="flex items-center justify-between p-4 border-b border-zinc-700">
             <h3 className="text-white font-bold text-base">Select Destination Token</h3>
             <button
-              onClick={() => setShowDestinationTokenModal(false)}
+              onClick={() => {
+                setShowDestinationTokenModal(false);
+                setDestinationSearchQuery('');
+              }}
               className="text-zinc-400 hover:text-white transition-colors"
             >
               <X size={20} />
             </button>
           </div>
 
+          {/* Search Input */}
+          <div className="p-3 border-b border-zinc-700">
+            <input
+              type="text"
+              value={destinationSearchQuery}
+              onChange={(e) => setDestinationSearchQuery(e.target.value)}
+              placeholder="Search by name, symbol, or address..."
+              className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm p-2.5 rounded-lg placeholder-zinc-400 focus:outline-none focus:border-[#00DFD8]"
+              autoFocus
+            />
+          </div>
+
           <div className="overflow-y-auto max-h-80 p-2">
-            {destinationTokens.map((token, index) => (
+            {filteredDestinationTokens.map((token, index) => (
               <button
                 key={`${token.mint}-${index}`}
                 onClick={() => handleDestinationTokenSelect(token.mint)}
@@ -875,6 +939,12 @@ function TradePage() {
                 </div>
               </button>
             ))}
+
+            {filteredDestinationTokens.length === 0 && destinationTokens.length > 0 && (
+              <div className="p-4 text-center text-sm text-zinc-500">
+                No tokens match "{destinationSearchQuery}"
+              </div>
+            )}
 
             {destinationTokens.length === 0 && (
               <div className="p-4 text-center text-sm text-zinc-500">No pools available for this token</div>
