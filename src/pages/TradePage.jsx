@@ -766,16 +766,7 @@ function TradePage() {
     );
   };
 
-  // Show unlock prompt
-  if (showUnlockPrompt) {
-    return (
-      <div className="w-full max-w-lg p-4">
-        <PasswordPrompt onUnlock={handleUnlock} onCancel={handleUnlockCancel} />
-      </div>
-    );
-  }
-
-  // Filter tokens based on search query
+  // Filter tokens based on search query (must be before early return)
   const filteredPortfolioTokens = useMemo(() => {
     if (!tokenSearchQuery.trim()) return portfolioTokens;
     
@@ -787,7 +778,7 @@ function TradePage() {
     );
   }, [portfolioTokens, tokenSearchQuery]);
 
-  // Filter destination tokens based on search query
+  // Filter destination tokens based on search query (must be before early return)
   const filteredDestinationTokens = useMemo(() => {
     if (!destinationSearchQuery.trim()) return destinationTokens;
     
@@ -798,6 +789,15 @@ function TradePage() {
       token.mint.toLowerCase().includes(query)
     );
   }, [destinationTokens, destinationSearchQuery]);
+
+  // Show unlock prompt
+  if (showUnlockPrompt) {
+    return (
+      <div className="w-full max-w-lg p-4">
+        <PasswordPrompt onUnlock={handleUnlock} onCancel={handleUnlockCancel} />
+      </div>
+    );
+  }
 
   // Token Selection Modal
   const TokenModal = () => {

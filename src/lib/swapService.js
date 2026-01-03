@@ -1,5 +1,5 @@
 import { Connection, PublicKey, SystemProgram, Transaction, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { getAssociatedTokenAddressSync, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 
 // Constants
 const AMM_PROGRAM_ID = new PublicKey("EtGrXaRpEdozMtfd8tbkbrbDN8LqZNba3xWTdT3HtQWq");
@@ -190,13 +190,73 @@ async function swapXToY(fromTokenAmount, fromToken, toToken, wallet, connection)
     });
 
     // Get user token accounts
-    const userFromToken = getUserTokenAccount(FROM_TOKEN_MINT, wallet.publicKey);
-    const userToToken = getUserTokenAccount(TO_TOKEN_MINT, wallet.publicKey);
+    const userFromToken = getAssociatedTokenAddressSync(
+      FROM_TOKEN_MINT,
+      wallet.publicKey,
+      false,
+      SPL_TOKEN_PROGRAM_ID,
+      ATA_PROGRAM_ID
+    );
+    const userToToken = getAssociatedTokenAddressSync(
+      TO_TOKEN_MINT,
+      wallet.publicKey,
+      false,
+      SPL_TOKEN_PROGRAM_ID,
+      ATA_PROGRAM_ID
+    );
 
     console.log("👤 User token accounts:", {
       userFromToken: userFromToken.toString(),
       userToToken: userToToken.toString()
     });
+
+    // Check if token accounts exist and create them if needed
+    const fromTokenInfo = await connection.getAccountInfo(userFromToken);
+    const toTokenInfo = await connection.getAccountInfo(userToToken);
+    const instructions = [];
+
+    if (!fromTokenInfo && !FROM_TOKEN_MINT.equals(NATIVE_SOL_MINT)) {
+      console.log("⚠️ From token account not found, creating ATA for:", FROM_TOKEN_MINT.toString());
+      instructions.push(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          userFromToken,
+          wallet.publicKey,
+          FROM_TOKEN_MINT,
+          SPL_TOKEN_PROGRAM_ID,
+          ATA_PROGRAM_ID
+        )
+      );
+    }
+
+    if (!toTokenInfo && !TO_TOKEN_MINT.equals(NATIVE_SOL_MINT)) {
+      console.log("⚠️ To token account not found, creating ATA for:", TO_TOKEN_MINT.toString());
+      instructions.push(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          userToToken,
+          wallet.publicKey,
+          TO_TOKEN_MINT,
+          SPL_TOKEN_PROGRAM_ID,
+          ATA_PROGRAM_ID
+        )
+      );
+    }
+
+    // If we need to create ATAs, send that transaction first
+    if (instructions.length > 0) {
+      console.log("📤 Creating associated token accounts...");
+      const ataTransaction = new Transaction().add(...instructions);
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      ataTransaction.feePayer = wallet.publicKey;
+      ataTransaction.recentBlockhash = blockhash;
+      ataTransaction.lastValidBlockHeight = lastValidBlockHeight;
+
+      const signedAtaTx = await wallet.signTransaction(ataTransaction);
+      const ataSig = await connection.sendRawTransaction(signedAtaTx.serialize());
+      await connection.confirmTransaction(ataSig, 'confirmed');
+      console.log("✅ Associated token accounts created:", ataSig);
+    }
 
     // Convert amount to lamports
     const amountInLamports = tokenAmountToLamports(fromTokenAmount, fromToken.decimals);
@@ -207,7 +267,7 @@ async function swapXToY(fromTokenAmount, fromToken, toToken, wallet, connection)
       direction: directionAtoB ? "A to B" : "B to A"
     });
 
-    // Create transaction
+    // Create swap transaction
     const transaction = new Transaction();
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
@@ -242,7 +302,7 @@ async function swapXToY(fromTokenAmount, fromToken, toToken, wallet, connection)
     });
 
     // Sign and send
-    console.log("📤 Sending transaction...");
+    console.log("📤 Sending swap transaction...");
     const signedTransaction = await wallet.signTransaction(transaction);
     const signature = await connection.sendRawTransaction(signedTransaction.serialize());
 
@@ -308,13 +368,73 @@ async function swapWithNativeSOL(fromTokenAmount, fromToken, toToken, wallet, co
     });
 
     // Get user token accounts (handles native SOL automatically)
-    const userFromToken = getUserTokenAccount(FROM_TOKEN_MINT, wallet.publicKey);
-    const userToToken = getUserTokenAccount(TO_TOKEN_MINT, wallet.publicKey);
+    const userFromToken = getAssociatedTokenAddressSync(
+      FROM_TOKEN_MINT,
+      wallet.publicKey,
+      false,
+      SPL_TOKEN_PROGRAM_ID,
+      ATA_PROGRAM_ID
+    );
+    const userToToken = getAssociatedTokenAddressSync(
+      TO_TOKEN_MINT,
+      wallet.publicKey,
+      false,
+      SPL_TOKEN_PROGRAM_ID,
+      ATA_PROGRAM_ID
+    );
 
     console.log("👤 User token accounts:", {
       userFromToken: userFromToken.toString(),
       userToToken: userToToken.toString()
     });
+
+    // Check if token accounts exist and create them if needed
+    const fromTokenInfo = await connection.getAccountInfo(userFromToken);
+    const toTokenInfo = await connection.getAccountInfo(userToToken);
+    const instructions = [];
+
+    if (!fromTokenInfo && !FROM_TOKEN_MINT.equals(NATIVE_SOL_MINT)) {
+      console.log("⚠️ From token account not found, creating ATA for:", FROM_TOKEN_MINT.toString());
+      instructions.push(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          userFromToken,
+          wallet.publicKey,
+          FROM_TOKEN_MINT,
+          SPL_TOKEN_PROGRAM_ID,
+          ATA_PROGRAM_ID
+        )
+      );
+    }
+
+    if (!toTokenInfo && !TO_TOKEN_MINT.equals(NATIVE_SOL_MINT)) {
+      console.log("⚠️ To token account not found, creating ATA for:", TO_TOKEN_MINT.toString());
+      instructions.push(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          userToToken,
+          wallet.publicKey,
+          TO_TOKEN_MINT,
+          SPL_TOKEN_PROGRAM_ID,
+          ATA_PROGRAM_ID
+        )
+      );
+    }
+
+    // If we need to create ATAs, send that transaction first
+    if (instructions.length > 0) {
+      console.log("📤 Creating associated token accounts for native SOL swap...");
+      const ataTransaction = new Transaction().add(...instructions);
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      ataTransaction.feePayer = wallet.publicKey;
+      ataTransaction.recentBlockhash = blockhash;
+      ataTransaction.lastValidBlockHeight = lastValidBlockHeight;
+
+      const signedAtaTx = await wallet.signTransaction(ataTransaction);
+      const ataSig = await connection.sendRawTransaction(signedAtaTx.serialize());
+      await connection.confirmTransaction(ataSig, 'confirmed');
+      console.log("✅ Associated token accounts created:", ataSig);
+    }
 
     // Convert amount to lamports
     const amountInLamports = isFromSOL
@@ -329,7 +449,7 @@ async function swapWithNativeSOL(fromTokenAmount, fromToken, toToken, wallet, co
       isToSOL
     });
 
-    // Create transaction
+    // Create swap transaction
     const transaction = new Transaction();
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
@@ -364,7 +484,7 @@ async function swapWithNativeSOL(fromTokenAmount, fromToken, toToken, wallet, co
     });
 
     // Sign and send
-    console.log("📤 Sending transaction...");
+    console.log("📤 Sending native SOL swap transaction...");
     const signedTransaction = await wallet.signTransaction(transaction);
     const signature = await connection.sendRawTransaction(signedTransaction.serialize());
 
