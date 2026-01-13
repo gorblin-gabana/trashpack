@@ -120,22 +120,45 @@ function AddAccountModal({ isOpen, onClose }) {
     const trimmedKey = key.trim();
     if (!trimmedKey) return { isValid: false, message: '' };
     
-    // Check if it's a valid base58 string (typical Solana private key)
-    if (/^[1-9A-HJ-NP-Za-km-z]+$/.test(trimmedKey)) {
+    try {
+      // Try to decode as base58 using a simple check first
+      if (!/^[1-9A-HJ-NP-Za-km-z]+$/.test(trimmedKey)) {
+        // Not valid base58 characters, try hex
+        const hexString = trimmedKey.replace(/^0x/, '');
+        if (/^[0-9a-fA-F]+$/.test(hexString)) {
+          if (hexString.length === 64) {
+            return { isValid: true, message: 'Valid hex private key (32 bytes)' };
+          } else if (hexString.length === 128) {
+            return { isValid: true, message: 'Valid hex secret key (64 bytes)' };
+          } else {
+            return { 
+              isValid: false, 
+              message: `Invalid hex length: ${hexString.length} chars (expected 64 or 128)` 
+            };
+          }
+        }
+        return { isValid: false, message: 'Invalid format. Expected base58 or hex private key' };
+      }
+      
+      // Basic base58 validation - proper validation happens on import
       if (trimmedKey.length >= 32 && trimmedKey.length <= 88) {
-        return { isValid: true, message: 'Valid base58 private key' };
+        // Additional check: if it looks like a typical Solana address (44 chars), warn user
+        if (trimmedKey.length === 44) {
+          return { 
+            isValid: false, 
+            message: 'This looks like a public address, not a private key' 
+          };
+        }
+        return { isValid: true, message: 'Valid base58 format (will be verified on import)' };
+      } else {
+        return { 
+          isValid: false, 
+          message: `Invalid length: ${trimmedKey.length} chars (expected 32-88 for base58)` 
+        };
       }
+    } catch (error) {
+      return { isValid: false, message: 'Invalid private key format' };
     }
-    
-    // Check if it's a valid hex string
-    const hexString = trimmedKey.replace(/^0x/, '');
-    if (/^[0-9a-fA-F]+$/.test(hexString)) {
-      if (hexString.length === 64 || hexString.length === 128) {
-        return { isValid: true, message: 'Valid hex private key' };
-      }
-    }
-    
-    return { isValid: false, message: 'Invalid private key format' };
   };
 
   const privateKeyValidation = validatePrivateKey(privateKey);
@@ -176,7 +199,7 @@ function AddAccountModal({ isOpen, onClose }) {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your wallet password"
                 className="w-full bg-zinc-800 border border-zinc-700 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleUnlockAndProceed();
                   }

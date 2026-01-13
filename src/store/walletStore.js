@@ -341,8 +341,35 @@ export const useWalletStore = create((set, get) => ({
         throw new Error('Invalid private key format. Expected string, Uint8Array, or array.');
       }
 
-      // Validate private key length
-      if (privateKeyBytes.length === 64) {
+      // Validate private key length and detect common mistakes
+      if (privateKeyBytes.length === 32) {
+        const bs58 = await import('bs58');
+        const nacl = await import('tweetnacl');
+        
+        // Check if this might be a public key instead of a private key
+        // If the input string matches the base58 encoding of these bytes, it's likely a public key
+        const inputAsAddress = bs58.default.encode(privateKeyBytes);
+        if (inputAsAddress === privateKeyInput.trim()) {
+          throw new Error(`This appears to be a public key/address (${inputAsAddress}), not a private key. Please provide the private key (secret key) for this account instead.`);
+        }
+        
+        // This is a 32-byte seed, generate keypair from seed
+        const keypair = nacl.default.sign.keyPair.fromSeed(privateKeyBytes);
+        const address = bs58.default.encode(keypair.publicKey);
+
+        // Return a keypair object that's compatible with existing transaction code
+        const compatibleKeypair = {
+          address: address,
+          secretKey: keypair.secretKey, // 64 bytes from tweetnacl
+          publicKey: keypair.publicKey,
+          // Store the raw nacl keypair for direct signing if needed
+          _naclKeypair: keypair,
+          // Mark this as imported so we know it's not derived from the main mnemonic
+          isImported: true
+        };
+
+        return compatibleKeypair;
+      } else if (privateKeyBytes.length === 64) {
         // This is a full secret key (32 bytes seed + 32 bytes public key)
         // Use it directly with fromSecretKey
         const nacl = await import('tweetnacl');
@@ -370,29 +397,14 @@ export const useWalletStore = create((set, get) => ({
         };
 
         return compatibleKeypair;
-      } else if (privateKeyBytes.length === 32) {
-        // This is a 32-byte seed, generate keypair from seed
-        const nacl = await import('tweetnacl');
-        const keypair = nacl.default.sign.keyPair.fromSeed(privateKeyBytes);
-
-        // Convert public key to base58 address
-        const bs58 = await import('bs58');
-        const address = bs58.default.encode(keypair.publicKey);
-
-        // Return a keypair object that's compatible with existing transaction code
-        const compatibleKeypair = {
-          address: address,
-          secretKey: keypair.secretKey, // 64 bytes from tweetnacl
-          publicKey: keypair.publicKey,
-          // Store the raw nacl keypair for direct signing if needed
-          _naclKeypair: keypair,
-          // Mark this as imported so we know it's not derived from the main mnemonic
-          isImported: true
-        };
-
-        return compatibleKeypair;
       } else {
-        throw new Error('Invalid private key length. Expected 32 or 64 bytes.');
+        throw new Error(`Invalid private key length: ${privateKeyBytes.length} bytes. Expected 32 bytes (seed) or 64 bytes (full secret key). Common formats:
+        
+• 32-byte seed (base58): Usually starts with numbers/letters, ~44 characters
+• 64-byte secret key (base58): Usually ~88 characters  
+• Hex format: 64 characters (32 bytes) or 128 characters (64 bytes)
+
+Note: Make sure you're using the private key, not the public key/address.`);
       }
     } catch (err) {
       console.error('Error creating keypair from private key:', err);

@@ -36,7 +36,7 @@ html, body {
   height: var(--extension-height);
   max-width: var(--extension-width);
   max-height: var(--extension-height);
-  overflow: hidden;
+  /* overflow: hidden; */
 }
 
 body {
