@@ -6,6 +6,7 @@ import { parseTransactionError } from '../util/errorHandling';
 import secureStorage from '../util/secureStorage';
 import { lamportsToTokens } from '../util';
 import { SystemProgram, Transaction, PublicKey } from '@solana/web3.js';
+import { ATA_PROGRAM_ID, SPL_TOKEN_PROGRAM_ID } from '../lib/config';
 
 export const useTransactionStore = create((set, get) => ({
   // State
@@ -412,6 +413,325 @@ export const useTransactionStore = create((set, get) => ({
   forceRefreshTransactions: async (address, chain, environment, selectedNetwork, getCurrentRpcUrl) => {
     set({ lastFetchTime: null, lastFetchSignature: null }); // Reset cache
     await get().getTransactions(address, chain, environment, selectedNetwork, getCurrentRpcUrl);
+  },
+
+  sendTokenTransaction: async ({ toAddress, amount, tokenMint, tokenDecimals, walletAddress, getKeypair, selectedNetwork, getCurrentRpcUrl, selectedEnvironment }) => {
+    if (!toAddress || !amount || !tokenMint || !walletAddress || !getKeypair || !selectedNetwork) {
+      throw new Error('Missing required parameters for token transaction');
+    }
+
+    const keypair = getKeypair();
+    if (!keypair) {
+      throw new Error('Please unlock your wallet to send transactions');
+    }
+
+    set({ isLoadingSend: true, txResult: null });
+
+    try {
+      // Import required SPL token functions
+      const { 
+        getAssociatedTokenAddress, 
+        createAssociatedTokenAccountInstruction, 
+        createTransferInstruction, 
+      } = await import('@solana/spl-token');
+      const { PublicKey, Transaction } = await import('@solana/web3.js');
+
+      // Connect to the network using custom RPC URL if available, otherwise default
+      const rpcUrl = getCurrentRpcUrl ? getCurrentRpcUrl() : selectedNetwork.rpcUrl;
+      const connection = createSolanaRpc(rpcUrl);
+
+      // Create public keys
+      const fromPublicKey = new PublicKey(walletAddress);
+      const toPublicKey = new PublicKey(toAddress);
+      const mintPublicKey = new PublicKey(tokenMint);
+
+      // Calculate token amount in smallest units
+      const tokenAmount = Math.floor(parseFloat(amount) * Math.pow(10, tokenDecimals));
+
+      // Get associated token addresses
+      const fromTokenAccount = await getAssociatedTokenAddress(
+        mintPublicKey,
+        fromPublicKey,
+        false,
+        SPL_TOKEN_PROGRAM_ID,
+        ATA_PROGRAM_ID
+      );
+
+      const toTokenAccount = await getAssociatedTokenAddress(
+        mintPublicKey,
+        toPublicKey,
+        false,
+        SPL_TOKEN_PROGRAM_ID,
+        ATA_PROGRAM_ID
+      );
+      // Get recent blockhash
+      let blockhash;
+      try {
+        const blockhashResponse = await connection.getLatestBlockhash();
+        if (blockhashResponse && typeof blockhashResponse === 'object') {
+          blockhash = blockhashResponse.blockhash || blockhashResponse.value?.blockhash || blockhashResponse.result?.value?.blockhash;
+        } else if (typeof blockhashResponse === 'string') {
+          blockhash = blockhashResponse;
+        }
+      } catch (err) {
+        console.warn('Failed to get blockhash via @solana/kit, trying direct RPC:', err.message);
+      }
+
+      // Fallback to direct RPC call if @solana/kit method failed
+      if (!blockhash) {
+        try {
+          const response = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'getLatestBlockhash',
+              params: []
+            })
+          });
+          
+          const data = await response.json();
+          if (data.result && data.result.value && data.result.value.blockhash) {
+            blockhash = data.result.value.blockhash;
+          } else if (data.result && data.result.blockhash) {
+            blockhash = data.result.blockhash;
+          }
+        } catch (directErr) {
+          console.error('Direct RPC blockhash call also failed:', directErr);
+        }
+      }
+
+      if (!blockhash) {
+        throw new Error('Failed to get recent blockhash from both @solana/kit and direct RPC');
+      }
+
+      // Create transaction
+      const transaction = new Transaction();
+      transaction.feePayer = fromPublicKey;
+      transaction.recentBlockhash = blockhash;
+
+      // Check if recipient's associated token account exists
+      let toAccountExists = false;
+      try {
+        const accountInfo = await connection.getAccountInfo(toTokenAccount).send();
+        console.log("tOTokenAccount=>",accountInfo);
+        toAccountExists = accountInfo !== null;
+      } catch (err) {
+        console.warn('Failed to check recipient token account:', err);
+        toAccountExists = false;
+      }
+
+      // If recipient's token account doesn't exist, create it
+      if (!toAccountExists) {
+        const createAccountInstruction = createAssociatedTokenAccountInstruction(
+          fromPublicKey, // payer
+          toTokenAccount, // associated token account
+          toPublicKey, // owner
+          mintPublicKey, // mint
+          SPL_TOKEN_PROGRAM_ID,
+          ATA_PROGRAM_ID
+        );
+        transaction.add(createAccountInstruction);
+      }
+
+      // Add transfer instruction
+      const transferInstruction = createTransferInstruction(
+        fromTokenAccount, // source
+        toTokenAccount, // destination
+        fromPublicKey, // owner
+        tokenAmount // amount
+      );
+      transferInstruction.programId = SPL_TOKEN_PROGRAM_ID;
+      transaction.add(transferInstruction);
+
+      console.log("====>",JSON.stringify(transaction,null,2));
+
+      // Serialize the transaction message for signing
+      const messageBytes = transaction.serializeMessage();
+
+      // Sign the message
+      const nacl = await import('tweetnacl');
+      const signature = nacl.default.sign.detached(messageBytes, keypair.secretKey);
+
+      // Create the final transaction in wire format
+      const wireTransaction = Buffer.concat([
+        Buffer.from([1]), // Number of signatures
+        Buffer.from(signature), // The signature (64 bytes)
+        messageBytes // The message
+      ]);
+
+      // Send the transaction using chain-specific methods
+      let signature_result;
+
+      if (selectedNetwork.chain === 'gorbagana') {
+        // For Gorbagana, use direct RPC calls
+        try {
+          const gorbBase64 = wireTransaction.toString('base64');
+
+          // First simulate the transaction
+          const simResponse = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'simulateTransaction',
+              params: [gorbBase64, { encoding: 'base64', sigVerify: false, commitment: 'confirmed' }]
+            })
+          });
+
+          const simData = await simResponse.json();
+
+          if (simData.error) {
+            throw new Error(`Gorbagana token simulation failed: ${simData.error.message} - ${JSON.stringify(simData.error.data)}`);
+          }
+
+          if (simData.result && simData.result.value && simData.result.value.err) {
+            throw new Error(`Gorbagana token transaction simulation failed: ${JSON.stringify(simData.result.value.err)}`);
+          }
+
+          // Send the actual transaction
+          const response = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'sendTransaction',
+              params: [gorbBase64, { encoding: 'base64', skipPreflight: false, preflightCommitment: 'confirmed' }]
+            })
+          });
+
+          const data = await response.json();
+
+          if (data.error) {
+            throw new Error(`Gorbagana token RPC error: ${data.error.message} - ${JSON.stringify(data.error.data)}`);
+          }
+
+          signature_result = data.result;
+        } catch (gorbErr) {
+          console.error('Gorbagana token transaction failed:', gorbErr);
+          throw new Error('Failed to send Gorbagana token transaction: ' + gorbErr.message);
+        }
+      } else {
+        // For Solana, use @solana/kit
+        try {
+          // First simulate the transaction
+          const simRequest = await connection.simulateTransaction(wireTransaction, {
+            sigVerify: false,
+            commitment: 'confirmed'
+          });
+
+          let simResult;
+          if (simRequest && typeof simRequest.send === 'function') {
+            simResult = await simRequest.send();
+          } else {
+            simResult = simRequest;
+          }
+
+          if (simResult && simResult.value && simResult.value.err) {
+            throw new Error(`Solana token transaction simulation failed: ${JSON.stringify(simResult.value.err)}`);
+          } else if (simResult && simResult.err) {
+            throw new Error(`Solana token transaction simulation failed: ${JSON.stringify(simResult.err)}`);
+          }
+
+        } catch (simError) {
+          console.error('Solana token simulation failed:', simError);
+          throw new Error(`Solana token transaction simulation failed: ${simError.message}`);
+        }
+
+        const sendRequest = await connection.sendRawTransaction(wireTransaction, {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed'
+        });
+
+        // Check if we need to call .send() method
+        if (sendRequest && typeof sendRequest.send === 'function') {
+          signature_result = await sendRequest.send();
+        } else if (typeof sendRequest === 'string') {
+          signature_result = sendRequest;
+        } else {
+          throw new Error('Unexpected sendRawTransaction response format');
+        }
+      }
+
+      // Wait for confirmation using chain-specific methods
+      if (selectedNetwork.chain === 'gorbagana') {
+        // For Gorbagana, wait a bit for the transaction to propagate
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        try {
+          const response = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'getTransaction',
+              params: [signature_result]
+            })
+          });
+          
+          const data = await response.json();
+        } catch (checkErr) {
+          // Transaction check failed, but we have signature so we continue
+        }
+      } else {
+        // For Solana, use @solana/kit confirmation
+        const confirmRequest = await connection.confirmTransaction(signature_result, 'confirmed');
+
+        let confirmation;
+        if (confirmRequest && typeof confirmRequest.send === 'function') {
+          confirmation = await confirmRequest.send();
+        } else {
+          confirmation = confirmRequest;
+        }
+
+        if (confirmation && confirmation.value && confirmation.value.err) {
+          throw new Error('Token transaction failed: ' + JSON.stringify(confirmation.value.err));
+        } else if (confirmation && confirmation.err) {
+          throw new Error('Token transaction failed: ' + JSON.stringify(confirmation.err));
+        }
+      }
+
+      set({
+        txResult: signature_result,
+        isLoadingSend: false
+      });
+
+      toast.success('Token transaction sent successfully!');
+
+      // Create transaction record for local storage
+      const transactionRecord = {
+        id: signature_result,
+        hash: signature_result,
+        sender_address: walletAddress,
+        receiver_address: toAddress,
+        sent_amount: parseFloat(amount),
+        received_amount: parseFloat(amount),
+        token_mint: tokenMint,
+        token_symbol: 'Token', // This could be enhanced to include actual token symbol
+        chain: selectedNetwork.chain,
+        status: "success",
+        created_at: new Date().toISOString(),
+        environment: selectedEnvironment || "testnet",
+        source: 'local'
+      };
+
+      // Save locally
+      await get().saveTransactionLocally(transactionRecord);
+
+      return signature_result;
+
+    } catch (err) {
+      console.error('Token transaction error:', err);
+      set({ 
+        isLoadingSend: false,
+        txResult: null 
+      });
+      throw new Error('Token transaction failed: ' + err.message);
+    }
   },
 
   sendTransaction: async ({ toAddress, amount, walletAddress, getKeypair, selectedNetwork, getCurrentRpcUrl, selectedEnvironment }) => {

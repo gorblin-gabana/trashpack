@@ -4,7 +4,7 @@ import { useTransactionStore, useWalletStore } from '../store';
 import QRCodeWithIcon from './QRCodeWithIcon';
 import toast from 'react-hot-toast';
 
-function SendTransactionPopup({ isOpen, onClose, amount }) {
+function SendTransactionPopup({ isOpen, onClose, amount, token }) {
     const { isLoadingSend, txResult } = useTransactionStore();
     const { selectedNetwork } = useWalletStore();
     const [showQR, setShowQR] = useState(false);
@@ -16,6 +16,11 @@ function SendTransactionPopup({ isOpen, onClose, amount }) {
     const isLoading = isLoadingSend;
 
     const explorerUrl = txResult ? selectedNetwork.explorerUrl(txResult) : '';
+    
+    // Get token display info
+    const tokenSymbol = token ? token.symbol : selectedNetwork.symbol;
+    const tokenIcon = token ? token.icon : selectedNetwork.icon;
+    const tokenName = token ? token.name : selectedNetwork.name;
 
     const copyTxHash = async () => {
         if (txResult) {
@@ -68,9 +73,9 @@ function SendTransactionPopup({ isOpen, onClose, amount }) {
             <div className="flex-1 flex flex-col items-center justify-center p-8">
                 {/* Loading State */}
                 {isLoading && (
-                    <div className="flex flex-col items-center gap-6 max-w-sm mx-auto text-center">
+                    <div className="flex flex-col items-center gap-6 w-full max-w-sm mx-auto text-center px-4">
                         {/* Animated Loading Circle */}
-                        <div className="relative">
+                        <div className="relative flex justify-center">
                             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-teal-500/20 to-blue-500/20 flex items-center justify-center border border-teal-500/30">
                                 <Loader2 size={32} className="animate-spin text-teal-400" />
                             </div>
@@ -78,25 +83,37 @@ function SendTransactionPopup({ isOpen, onClose, amount }) {
                         </div>
 
                         {/* Amount Display */}
-                        <div className="flex items-center gap-3 mb-2">
-                            <img
-                                src={selectedNetwork.icon}
-                                alt={selectedNetwork.name}
-                                className="w-8 h-8 object-cover rounded-full"
-                            />
+                        <div className="flex items-center justify-center gap-3 mb-4">
+                            {tokenIcon ? (
+                                <img
+                                    src={tokenIcon}
+                                    alt={tokenName}
+                                    className="w-8 h-8 object-cover rounded-full flex-shrink-0"
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                />
+                            ) : null}
+                            <div 
+                                className="w-8 h-8 bg-zinc-600 rounded-full flex items-center justify-center text-xs flex-shrink-0"
+                                style={{ display: tokenIcon ? 'none' : 'flex' }}
+                            >
+                                {tokenSymbol?.charAt(0) || '?'}
+                            </div>
                             <span className="text-2xl font-bold text-white">{amount}</span>
-                            <span className="text-2xl font-bold text-zinc-400">{selectedNetwork.symbol}</span>
+                            <span className="text-2xl font-bold text-zinc-400">{tokenSymbol}</span>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 text-center">
                             <p className="text-white text-lg font-medium">Processing transaction...</p>
                             <p className="text-zinc-400 text-sm leading-relaxed">
-                                Please wait while your transaction is being processed on the {selectedNetwork.name} network.
+                                Please wait while your {token ? 'token' : 'transaction'} is being processed on the {selectedNetwork.name} network.
                             </p>
                         </div>
 
                         {/* Progress Dots */}
-                        <div className="flex gap-2">
+                        <div className="flex items-center justify-center gap-2">
                             <div className="w-2 h-2 bg-teal-400 rounded-full animate-bounce"></div>
                             <div className="w-2 h-2 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                             <div className="w-2 h-2 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -106,9 +123,9 @@ function SendTransactionPopup({ isOpen, onClose, amount }) {
 
                 {/* Success State */}
                 {isComplete && (
-                    <div className="flex flex-col items-center gap-6 max-w-sm mx-auto text-center">
+                    <div className="flex flex-col items-center gap-6 w-full max-w-sm mx-auto text-center px-4">
                         {/* Success Animation */}
-                        <div className="relative">
+                        <div className="relative flex justify-center">
                             {showQR ? (
                                 <div className="bg-white rounded-2xl p-4 shadow-2xl">
                                     <QRCodeWithIcon 
@@ -135,21 +152,33 @@ function SendTransactionPopup({ isOpen, onClose, amount }) {
                         </div>
 
                         {/* Success Message */}
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-3">
-                                <img
-                                    src={selectedNetwork.icon}
-                                    alt={selectedNetwork.name}
-                                    className="w-8 h-8 object-cover rounded-full"
-                                />
+                        <div className="space-y-3 w-full">
+                            <div className="flex items-center justify-center gap-3 mb-4">
+                                {tokenIcon ? (
+                                    <img
+                                        src={tokenIcon}
+                                        alt={tokenName}
+                                        className="w-8 h-8 object-cover rounded-full flex-shrink-0"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                    />
+                                ) : null}
+                                <div 
+                                    className="w-8 h-8 bg-zinc-600 rounded-full flex items-center justify-center text-xs flex-shrink-0"
+                                    style={{ display: tokenIcon ? 'none' : 'flex' }}
+                                >
+                                    {tokenSymbol?.charAt(0) || '?'}
+                                </div>
                                 <span className="text-2xl font-bold text-white">{amount}</span>
-                                <span className="text-2xl font-bold text-zinc-400">{selectedNetwork.symbol}</span>
+                                <span className="text-2xl font-bold text-zinc-400">{tokenSymbol}</span>
                             </div>
                             
-                            <div className="space-y-2">
+                            <div className="space-y-2 text-center">
                                 <p className="text-white text-lg font-semibold">Transaction Successful!</p>
                                 <p className="text-zinc-400 text-sm">
-                                    Your transaction has been confirmed on the {selectedNetwork.name} network.
+                                    Your {token ? `${tokenSymbol} token` : 'transaction'} has been confirmed on the {selectedNetwork.name} network.
                                 </p>
                             </div>
                         </div>

@@ -1,11 +1,8 @@
-import { Connection, PublicKey, SystemProgram, Transaction, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { PublicKey, SystemProgram, Transaction, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
+import { AMM_PROGRAM_ID, NATIVE_SOL_MINT, SPL_TOKEN_PROGRAM_ID, ATA_PROGRAM_ID } from './config';
 
-// Constants
-const AMM_PROGRAM_ID = new PublicKey("EtGrXaRpEdozMtfd8tbkbrbDN8LqZNba3xWTdT3HtQWq");
-const SPL_TOKEN_PROGRAM_ID = new PublicKey("G22oYgZ6LnVcy7v8eSNi2xpNk1NcZiPD8CVKSTut7oZ6");
-const ATA_PROGRAM_ID = new PublicKey("GoATGVNeSXerFerPqTJ8hcED1msPWHHLxao2vwBYqowm");
-const NATIVE_SOL_MINT = new PublicKey("So11111111111111111111111111111111111111112");
+
 
 const INSTRUCTION_DISCRIMINATORS = {
   SWAP: 3,

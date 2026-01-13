@@ -2,6 +2,8 @@
 // or allow users to provide their own RPC endpoints via settings.
 // The Helius and Moralis API keys below are for development only.
 
+import { PublicKey } from "@solana/web3.js";
+
 export const networks = [
     {
         id: 'gorbchain-mainnet',
@@ -57,3 +59,9 @@ export const networks = [
 export const MORALIS_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6ImM0NzE4ZGUzLWU2ZGEtNDc4ZS1hMTYxLWY0ZmEwMDk1OWRiYyIsIm9yZ0lkIjoiMzg4NzA0IiwidXNlcklkIjoiMzk5NDE3IiwidHlwZUlkIjoiZGI3OTQ1NzQtOWVkZC00YWEzLWIzZGQtMjE0Mzk0YTA1OThjIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3MTM1NDc5NDEsImV4cCI6NDg2OTMwNzk0MX0.jUKdjt9xIfazcn0Muo8fQiAyC19gpNl2qpCvR648cOM';
 export const SOLANA_MAINNET_RPC = "https://solana-mainnet.g.alchemy.com/v2/N0AnlCaVUdAWUKIhcoi0rTGaOjTPZ-l6"
 export const SOLANA_MAINNET_RPC_WS = "wss://mainnet.helius-rpc.com/?api-key=cc434133-bb70-4beb-9592-20fee333f80a"
+
+// Constants
+export const AMM_PROGRAM_ID = new PublicKey("EtGrXaRpEdozMtfd8tbkbrbDN8LqZNba3xWTdT3HtQWq");
+export const SPL_TOKEN_PROGRAM_ID = new PublicKey("G22oYgZ6LnVcy7v8eSNi2xpNk1NcZiPD8CVKSTut7oZ6");
+export const ATA_PROGRAM_ID = new PublicKey("GoATGVNeSXerFerPqTJ8hcED1msPWHHLxao2vwBYqowm");
+export const NATIVE_SOL_MINT = new PublicKey("So11111111111111111111111111111111111111112");
