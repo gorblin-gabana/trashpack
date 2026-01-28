@@ -22,7 +22,17 @@
     "https://api.devnet.solana.com/*",
     "https://devnet.gorbchain.xyz/*",
     "https://mainnet.helius-rpc.com/*",
-    "https://solana-mainnet.g.alchemy.com/*"
+    "https://solana-mainnet.g.alchemy.com/*",
+    "https://api.gorbscan.com/*",
+    "https://gorbscan.com/*",
+    "https://devnet.gorbscan.com/*",
+    "https://trashpack.tech/*",
+    "https://api.allorigins.win/*",
+    "https://solana-gateway.moralis.io/*",
+    "https://ipfs.io/*",
+    "wss://rpc.gorbchain.xyz/*",
+    "wss://devnet.gorbchain.xyz/*",
+    "wss://mainnet.helius-rpc.com/*"
   ],
   "optional_host_permissions": [
     "http://localhost:5173/*",
@@ -67,6 +77,6 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self'; img-src 'self' https: data:; connect-src 'self' https:;"
+    "extension_pages": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self'; img-src 'self' https: data:; connect-src 'self' https: wss:;"
   }
 }
